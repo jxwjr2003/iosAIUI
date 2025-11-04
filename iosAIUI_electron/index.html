@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS UI Editor</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+    <link rel="stylesheet" href="src/styles/property-editor.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- 顶部工具栏 -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">iOS UI Editor</h1>
+            </div>
+            <div class="header-center">
+                <button id="import-btn" class="toolbar-btn">导入JSON</button>
+                <button id="export-btn" class="toolbar-btn">导出JSON</button>
+                <button id="view-json-btn" class="toolbar-btn">查看JSON内容</button>
+                <button id="new-root-btn" class="toolbar-btn">新建根节点</button>
+            </div>
+            <div class="header-right">
+                <button id="settings-btn" class="toolbar-btn">设置</button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 左侧：树形编辑器 (35%) -->
+            <section class="panel tree-editor-panel">
+                <div class="panel-header">
+                    <h2>UI 层级树</h2>
+                    <div class="panel-actions">
+                        <button id="expand-all-btn" class="icon-btn" title="展开全部">📂</button>
+                        <button id="collapse-all-btn" class="icon-btn" title="收起全部">📁</button>
+                        <button id="search-tree-btn" class="icon-btn" title="搜索">🔍</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="tree-container" class="tree-container">
+                        <!-- 树形结构将在这里动态生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 中间：iOS 模拟器 (30%) -->
+            <section class="panel simulator-panel">
+                <div class="panel-header">
+                    <h2>iOS 模拟器</h2>
+                    <div class="panel-actions">
+                        <select id="device-selector" class="device-selector">
+                            <option value="iphone15">iPhone 15</option>
+                            <option value="iphone15pro">iPhone 15 Pro</option>
+                            <option value="iphone14">iPhone 14</option>
+                            <option value="custom">自定义</option>
+                        </select>
+                        <button id="refresh-simulator-btn" class="icon-btn" title="刷新预览">🔄</button>
+                        <button id="zoom-out-btn" class="icon-btn" title="缩小">➖</button>
+                        <button id="zoom-in-btn" class="icon-btn" title="放大">➕</button>
+                        <button id="reset-view-btn" class="icon-btn" title="重置视图">🗘</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="simulator-container" class="simulator-container">
+                        <div id="simulator-device" class="simulator-device">
+                            <div id="simulator-screen" class="simulator-screen">
+                                <div id="simulator-content" class="simulator-content">
+                                    <!-- 模拟器内容将在这里动态渲染 -->
+                                    <div class="simulator-placeholder">
+                                        <p>选择根节点开始预览</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：属性编辑器 (35%) -->
+            <section class="panel property-editor-panel">
+                <div class="panel-header">
+                    <h2>属性编辑器</h2>
+                    <div class="panel-actions">
+                        <button id="save-properties-btn" class="icon-btn" title="保存属性">💾</button>
+                        <button id="reset-properties-btn" class="icon-btn" title="重置属性">↺</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="property-editor" class="property-editor">
+                        <div class="property-section">
+                            <h3>基础信息</h3>
+                            <div class="property-group">
+                                <label for="node-id">节点ID:</label>
+                                <input type="text" id="node-id" readonly>
+                            </div>
+                            <div class="property-group">
+                                <label for="node-name">节点名称:</label>
+                                <input type="text" id="node-name">
+                            </div>
+                            <div class="property-group">
+                                <label for="node-type">节点类型:</label>
+                                <select id="node-type">
+                                    <!-- 节点类型选项将动态生成 -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>Attributes 属性</h3>
+                            <div id="attributes-container" class="attributes-container">
+                                <!-- 属性编辑器将在这里动态生成 -->
+                            </div>
+                            <button id="add-attribute-btn" class="add-btn">+ 添加属性</button>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>约束包</h3>
+                            <div id="constraints-container" class="constraints-container">
+                                <!-- 约束包编辑器将在这里动态生成 -->
+                            </div>
+                            <button id="add-constraint-package-btn" class="add-btn">+ 添加约束包</button>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>成员变量</h3>
+                            <div id="member-variables-container" class="member-variables-container">
+                                <!-- 成员变量编辑器将在这里动态生成 -->
+                            </div>
+                            <button id="add-member-variable-btn" class="add-btn">+ 添加成员变量</button>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>函数</h3>
+                            <div id="functions-container" class="functions-container">
+                                <!-- 函数编辑器将在这里动态生成 -->
+                            </div>
+                            <button id="add-function-btn" class="add-btn">+ 添加函数</button>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>协议</h3>
+                            <div id="protocols-container" class="protocols-container">
+                                <!-- 协议编辑器将在这里动态生成 -->
+                            </div>
+                            <button id="add-protocol-btn" class="add-btn">+ 添加协议</button>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>布局</h3>
+                            <div class="property-group">
+                                <label for="layout-direction">子节点布局:</label>
+                                <select id="layout-direction">
+                                    <option value="horizontal">水平</option>
+                                    <option value="vertical">垂直</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="property-section">
+                            <h3>备注</h3>
+                            <div class="property-group">
+                                <textarea id="node-description" placeholder="输入节点说明..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部：AI 聊天助手 -->
+        <section class="ai-chat-panel">
+            <div class="panel-header">
+                <h2>AI 聊天助手</h2>
+                <div class="panel-actions">
+                    <button id="ai-config-btn" class="icon-btn" title="AI配置">⚙️</button>
+                    <button id="clear-chat-btn" class="icon-btn" title="清空聊天">🗑️</button>
+                </div>
+            </div>
+            <div id="ai-chat-container" class="ai-chat-container">
+                <!-- AI聊天助手将在这里动态生成界面 -->
+            </div>
+        </section>
+    </div>
+
+    <!-- 组件类型选择对话框 -->
+    <div id="component-type-dialog" class="modal-dialog" style="display: none;">
+        <div class="dialog-content">
+            <h3>选择组件类型</h3>
+            <div id="component-type-list" class="component-type-list">
+                <!-- 组件类型列表将动态生成 -->
+            </div>
+            <div class="dialog-actions">
+                <button id="cancel-component-btn" class="btn-secondary">取消</button>
+                <button id="confirm-component-btn" class="btn-primary">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 命令确认对话框 -->
+    <div id="ai-command-dialog" class="modal-dialog" style="display: none;">
+        <div class="dialog-content">
+            <h3>AI 修改命令确认</h3>
+            <div id="command-list" class="command-list">
+                <!-- 命令列表将动态生成 -->
+            </div>
+            <div class="dialog-actions">
+                <button id="cancel-command-btn" class="btn-secondary">取消</button>
+                <button id="execute-all-commands-btn" class="btn-primary">执行全部</button>
+                <button id="execute-selected-commands-btn" class="btn-primary">执行选中</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON 查看器对话框 -->
+    <div id="json-viewer-dialog" class="modal-dialog" style="display: none;">
+        <div class="dialog-content json-viewer-dialog">
+            <h3>UI 层级树 JSON 内容</h3>
+            <div class="json-viewer-actions">
+                <button id="copy-json-btn" class="btn-secondary">复制到剪贴板</button>
+                <button id="refresh-json-btn" class="btn-secondary">刷新</button>
+            </div>
+            <div id="json-content" class="json-content">
+                <!-- JSON 内容将在这里显示 -->
+            </div>
+            <div class="dialog-actions">
+                <button id="close-json-btn" class="btn-primary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/utils/stateManager.js"></script>
+    <script src="src/utils/nodeIdGenerator.js"></script>
+    <script src="src/utils/dataValidator.js"></script>
+    <script src="src/utils/constraintLayoutEngine.js"></script>
+    <script src="src/config/componentAttributes.js"></script>
+    <script src="src/managers/AttributeManager.js"></script>
+    <script src="src/managers/ConstraintManager.js"></script>
+    <script src="src/managers/MemberVariableManager.js"></script>
+    <script src="src/managers/FunctionManager.js"></script>
+    <script src="src/managers/ProtocolManager.js"></script>
+    <script src="src/components/treeEditor.js"></script>
+    <script src="src/components/simulator.js"></script>
+    <script src="src/components/propertyEditor.js"></script>
+    <script src="src/components/aiChatAssistant.js"></script>
+    <script src="src/components/jsonViewer.js"></script>
+    <script src="src/services/dataService.js"></script>
+    <script src="src/app.js"></script>
+</body>
+
+</html>
