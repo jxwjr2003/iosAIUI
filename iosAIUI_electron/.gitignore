@@ -1,0 +1,17 @@
+# Electron标准构建目录
+dist/
+build/
+out/
+release/
+
+# 依赖目录
+node_modules/
+
+# 系统文件
+.DS_Store
+*.log
+*.tmp
+
+# IDE配置
+.vscode/
+.idea/

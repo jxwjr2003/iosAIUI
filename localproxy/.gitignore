@@ -1,0 +1,13 @@
+# 构建产物（重点）
+release/
+
+# 依赖目录
+node_modules/
+
+# 系统文件
+.DS_Store
+*.log
+
+# 编译输出
+dist/
+build/
