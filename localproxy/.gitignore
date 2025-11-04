@@ -11,3 +11,12 @@ node_modules/
 # 编译输出
 dist/
 build/
+
+# Electron特殊忽略
+**/Electron.app/
+**/Electron Framework.framework/
+*.dmg
+*.exe
+*.msi
+*.pkg
+*.zip
