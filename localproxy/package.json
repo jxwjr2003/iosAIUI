@@ -1,0 +1,51 @@
+{
+  "name": "localproxy",
+  "version": "1.0.0",
+  "description": "LocalProxy - 基于 Electron 的代理服务器和模拟服务器管理工具",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dev": "tsc -w",
+    "electron": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir"
+  },
+  "keywords": [
+    "proxy",
+    "mock-server",
+    "electron",
+    "localproxy"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^25.0.0",
+    "electron-builder": "^26.0.12",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.example.localproxy",
+    "productName": "LocalProxy",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
