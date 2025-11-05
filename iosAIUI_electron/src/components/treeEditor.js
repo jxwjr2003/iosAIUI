@@ -143,8 +143,7 @@ class TreeEditor {
 
         // 缩进指示器
         const indentSpacer = document.createElement('div');
-        indentSpacer.className = 'node-indent';
-        indentSpacer.style.width = `${level * 20}px`;
+        indentSpacer.className = `node-indent indent-level-${level}`;
         nodeContent.appendChild(indentSpacer);
 
         // 节点ID
@@ -352,55 +351,8 @@ class TreeEditor {
      * @param {string|null} parentId - 父节点ID，null表示根节点
      */
     showComponentTypeDialog(parentId) {
-        const dialog = document.getElementById('component-type-dialog');
-        const typeList = document.getElementById('component-type-list');
-
-        if (!dialog || !typeList) return;
-
-        // 清空类型列表
-        typeList.innerHTML = '';
-
-        // 获取支持的组件类型
-        const componentTypes = dataValidator.getSupportedComponentTypes();
-
-        // 创建类型选项
-        componentTypes.forEach(type => {
-            const typeItem = document.createElement('div');
-            typeItem.className = 'component-type-item';
-            typeItem.textContent = type;
-            typeItem.addEventListener('click', () => {
-                document.querySelectorAll('.component-type-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-                typeItem.classList.add('selected');
-            });
-            typeList.appendChild(typeItem);
-        });
-
-        // 显示对话框
-        dialog.style.display = 'flex';
-
-        // 绑定确认按钮事件
-        const confirmBtn = document.getElementById('confirm-component-btn');
-        const cancelBtn = document.getElementById('cancel-component-btn');
-
-        const handleConfirm = () => {
-            const selectedItem = document.querySelector('.component-type-item.selected');
-            if (selectedItem) {
-                const componentType = selectedItem.textContent;
-                this.createNewNode(parentId, componentType);
-            }
-            dialog.style.display = 'none';
-            this.cleanupDialogEvents(confirmBtn, cancelBtn, handleConfirm, handleCancel);
-        };
-
-        const handleCancel = () => {
-            dialog.style.display = 'none';
-            this.cleanupDialogEvents(confirmBtn, cancelBtn, handleConfirm, handleCancel);
-        };
-
-        confirmBtn.addEventListener('click', handleConfirm);
-        cancelBtn.addEventListener('click', handleCancel);
+        // 直接创建默认的UIView节点，不再显示对话框
+        this.createNewNode(parentId, 'UIView');
     }
 
     /**
@@ -591,7 +543,7 @@ class TreeEditor {
     expandAll() {
         // 实现展开所有节点的逻辑
         document.querySelectorAll('.tree-children').forEach(children => {
-            children.style.display = 'block';
+            children.classList.remove('hidden');
         });
         this.showNotification('已展开所有节点');
     }
@@ -602,7 +554,7 @@ class TreeEditor {
     collapseAll() {
         // 实现收起所有节点的逻辑
         document.querySelectorAll('.tree-children').forEach(children => {
-            children.style.display = 'none';
+            children.classList.add('hidden');
         });
         this.showNotification('已收起所有节点');
     }
@@ -674,18 +626,53 @@ class TreeEditor {
      * @param {KeyboardEvent} e - 键盘事件
      */
     handleKeydown(e) {
+        // 检查是否在输入框中，如果是则不处理复制粘贴快捷键
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement?.tagName === 'INPUT' ||
+            activeElement?.tagName === 'TEXTAREA' ||
+            activeElement?.contentEditable === 'true';
+
+        if (isInputFocused) {
+            return; // 让系统默认的复制粘贴功能正常工作
+        }
+
         if (e.ctrlKey || e.metaKey) {
             switch (e.key) {
                 case 'c':
                     if (this.selectedNode) {
                         e.preventDefault();
+                        // 使用自定义格式存储UI节点数据
+                        const uiNodeData = {
+                            type: 'ios-ui-node',
+                            node: this.selectedNode,
+                            timestamp: Date.now()
+                        };
+                        // 同时设置自定义数据和纯文本数据
+                        navigator.clipboard.writeText(JSON.stringify(uiNodeData));
                         this.copyNode(this.selectedNode);
                     }
                     break;
                 case 'v':
                     if (this.selectedNode) {
                         e.preventDefault();
-                        this.pasteChildNode(this.selectedNode.id);
+                        // 从剪贴板读取数据
+                        navigator.clipboard.readText().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                if (data.type === 'ios-ui-node') {
+                                    // 处理UI节点粘贴
+                                    this.pasteChildNode(this.selectedNode.id);
+                                } else {
+                                    // 普通文本，不处理
+                                    console.log('粘贴普通文本，忽略:', text);
+                                }
+                            } catch (error) {
+                                // 不是JSON格式，可能是普通文本
+                                console.log('粘贴非UI节点数据，忽略:', text);
+                            }
+                        }).catch(err => {
+                            console.log('读取剪贴板失败:', err);
+                        });
                     }
                     break;
                 case 'd':
@@ -715,24 +702,11 @@ class TreeEditor {
         const notification = document.createElement('div');
         notification.className = 'notification';
         notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #007AFF;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 6px;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease-out;
-        `;
-
         document.body.appendChild(notification);
 
         // 3秒后自动移除
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease-in';
+            notification.classList.add('notification-exit');
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
@@ -767,58 +741,6 @@ class TreeEditor {
         this.container.innerHTML = '';
     }
 }
-
-// 添加CSS动画
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-    
-    .tree-node.dragging {
-        opacity: 0.5;
-        background-color: #f0f0f0;
-    }
-    
-    .tree-node.drag-over {
-        background-color: #e3f2fd;
-        border: 2px dashed #007AFF;
-    }
-    
-    .search-highlight {
-        background-color: #fff3cd !important;
-        border: 1px solid #ffeaa7;
-    }
-    
-    .tree-empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #666;
-    }
-    
-    .tree-empty-state button {
-        margin-top: 16px;
-    }
-`;
-document.head.appendChild(style);
 
 // 创建全局树形编辑器实例
 let treeEditor = null;

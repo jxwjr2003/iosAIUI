@@ -17,6 +17,7 @@ export interface RouteConfig {
     body: any;
     statusCode: number;
     description?: string;
+    isDefault?: boolean;
 }
 export interface JsonField {
     key: string;
@@ -52,9 +53,12 @@ export declare class MockServerEngine extends EventEmitter {
         isRunning: boolean;
         config: MockServerConfig | null;
     };
+    updateRouteConfig(config: MockServerConfig): Promise<void>;
+    updateRoute(routeId: string, updatedRoute: Partial<RouteConfig>): void;
     private handleRequest;
     private findMatchingRoute;
     private parseHeaders;
     private readRequestBody;
+    private getAvailableRoutes;
 }
 //# sourceMappingURL=mock-server-engine.d.ts.map

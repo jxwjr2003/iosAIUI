@@ -16,7 +16,10 @@ export declare class ConfigManager {
     private getDefaultConfig;
     loadConfig(): Promise<AppConfig>;
     saveConfig(config: Partial<AppConfig>): Promise<void>;
-    saveMockServerConfig(config: MockServerConfig): Promise<void>;
+    saveMockServerConfig(config: MockServerConfig): Promise<{
+        success: boolean;
+        message?: string;
+    }>;
     deleteMockServerConfig(id: string): Promise<void>;
     saveProxyServerConfig(config: ProxyServerConfig): Promise<void>;
     deleteProxyServerConfig(id: string): Promise<void>;
@@ -30,5 +33,6 @@ export declare class ConfigManager {
     }>;
     updateSettings(settings: Partial<AppConfig['settings']>): Promise<void>;
     getSettings(): AppConfig['settings'];
+    getConfigPath(): string;
 }
 //# sourceMappingURL=config-manager.d.ts.map

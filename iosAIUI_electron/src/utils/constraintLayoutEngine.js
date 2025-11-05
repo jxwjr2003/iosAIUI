@@ -41,7 +41,8 @@ class ConstraintLayoutEngine {
         this.traverseNodeForDependencies(rootNode);
     }
     /**
-     * 递归遍历节点构建依赖关系
+     * 递归遍历节点构建依赖关系 - 重构版
+     * 添加树状结构天然依赖：父节点必须优先于子节点计算
      * @param {Object} node - 当前节点
      */
     traverseNodeForDependencies(node) {
@@ -53,7 +54,19 @@ class ConstraintLayoutEngine {
         if (!this.dependencyGraph.has(node.id)) {
             this.dependencyGraph.set(node.id, new Set());
         }
-        // 分析当前节点的约束，找出依赖关系
+
+        // 1. 添加父节点依赖（树状结构天然依赖）
+        const nodeInfo = this.nodeCache.get(node.id);
+        if (nodeInfo && nodeInfo.parentNode && nodeInfo.parentNode.id !== "00") {
+            // 如果父节点存在且不是模拟器屏幕，添加依赖关系
+            this.dependencyGraph.get(node.id).add(nodeInfo.parentNode.id);
+            console.log('🌳 [ConstraintLayoutEngine] 添加父节点依赖:', {
+                '节点': node.id,
+                '依赖父节点': nodeInfo.parentNode.id
+            });
+        }
+
+        // 2. 分析当前节点的约束，找出依赖关系
         if (node.constraintPackages) {
             const defaultPackage = node.constraintPackages.find(pkg => pkg.isDefault);
             if (defaultPackage && defaultPackage.constraints) {
@@ -61,11 +74,18 @@ class ConstraintLayoutEngine {
                     if (constraint.reference && constraint.reference.nodeId) {
                         // 添加依赖关系：当前节点依赖于参考节点
                         this.dependencyGraph.get(node.id).add(constraint.reference.nodeId);
+                        console.log('🔗 [ConstraintLayoutEngine] 添加约束依赖:', {
+                            '节点': node.id,
+                            '依赖参考节点': constraint.reference.nodeId,
+                            '约束类型': constraint.type,
+                            '约束属性': constraint.attribute
+                        });
                     }
                 });
             }
         }
-        // 递归处理子节点
+
+        // 3. 递归处理子节点
         if (node.children) {
             node.children.forEach(child => {
                 this.traverseNodeForDependencies(child);
@@ -74,6 +94,7 @@ class ConstraintLayoutEngine {
     }
     /**
      * 拓扑排序 - 返回按依赖关系排序的节点ID数组
+     * 重构版：从根节点"00"开始，确保自上而下的计算顺序
      * @returns {Array} 排序后的节点ID数组
      */
     topologicalSort() {
@@ -97,12 +118,33 @@ class ConstraintLayoutEngine {
                 result.push(nodeId);
             }
         };
-        // 从所有节点开始遍历
+
+        console.log('🔍 [ConstraintLayoutEngine] 拓扑排序开始，依赖图:', {
+            '依赖图节点数量': this.dependencyGraph.size,
+            '依赖关系': Array.from(this.dependencyGraph.entries()).map(([nodeId, deps]) => ({
+                '节点': nodeId,
+                '依赖': Array.from(deps)
+            }))
+        });
+
+        // 重构：优先从根节点"00"开始拓扑排序
+        if (this.nodeCache.has("00")) {
+            console.log('🌱 [ConstraintLayoutEngine] 从根节点"00"开始拓扑排序');
+            visit("00");
+        }
+
+        // 然后处理其他节点
         for (const nodeId of this.dependencyGraph.keys()) {
             if (!visited.has(nodeId)) {
                 visit(nodeId);
             }
         }
+
+        console.log('✅ [ConstraintLayoutEngine] 拓扑排序完成:', {
+            '排序结果': result,
+            '处理节点数量': result.length
+        });
+
         return result;
     }
     /**
@@ -133,6 +175,8 @@ class ConstraintLayoutEngine {
         }
         // 计算布局
         const layout = this.calculateLayout(node, defaultPackage.constraints);
+        // 缓存布局数据
+        this.layoutCache.set(node.id, layout);
         // 应用布局
         this.applyLayout(element, layout);
     }
@@ -323,22 +367,71 @@ class ConstraintLayoutEngine {
     calculateNodeBounds(nodeInfo) {
         const { node, element, parentElement } = nodeInfo;
 
-        // 优先使用父容器相对坐标
-        if (element && parentElement) {
-            return {
-                top: element.offsetTop,
-                left: element.offsetLeft,
+        // 处理虚拟节点"00"（模拟器屏幕）
+        if (node.id === "00") {
+            const bounds = {
+                top: 0,
+                left: 0,
                 width: element.offsetWidth,
                 height: element.offsetHeight,
-                right: element.offsetLeft + element.offsetWidth,
-                bottom: element.offsetTop + element.offsetHeight
+                right: element.offsetWidth,
+                bottom: element.offsetHeight
             };
+            console.log('📏 [ConstraintLayoutEngine] 计算节点边界 - 虚拟节点00:', {
+                '节点ID': node.id,
+                '节点名称': '模拟器屏幕',
+                '使用缓存': false,
+                '计算结果': bounds
+            });
+            return bounds;
         }
 
-        // 备用方案：当无父元素时使用视口坐标
+        // 优先使用布局缓存
+        const cachedLayout = this.layoutCache.get(node.id);
+        if (cachedLayout) {
+            const parseDim = (val) => {
+                if (typeof val === 'string') {
+                    // 处理"60px"、"auto"等情况
+                    const num = parseInt(val);
+                    return isNaN(num) ? 0 : num;
+                }
+                return val || 0;
+            };
+
+            // 新增：计算父容器绝对位置
+            let parentTop = 0;
+            let parentLeft = 0;
+            if (nodeInfo.parentNode && nodeInfo.parentNode.id !== "00") {
+                const parentNodeInfo = this.nodeCache.get(nodeInfo.parentNode.id);
+                if (parentNodeInfo) {
+                    const parentBounds = this.calculateNodeBounds(parentNodeInfo);
+                    parentTop = parentBounds.top;
+                    parentLeft = parentBounds.left;
+                }
+            }
+
+            const bounds = {
+                top: parentTop + parseDim(cachedLayout.top),
+                left: parentLeft + parseDim(cachedLayout.left),
+                width: parseDim(cachedLayout.width),
+                height: parseDim(cachedLayout.height),
+                right: parentLeft + parseDim(cachedLayout.left) + parseDim(cachedLayout.width),
+                bottom: parentTop + parseDim(cachedLayout.top) + parseDim(cachedLayout.height)
+            };
+            console.log('📏 [ConstraintLayoutEngine] 计算节点边界 - 使用缓存:', {
+                '节点ID': node.id,
+                '节点名称': node.name,
+                '使用缓存': true,
+                '缓存布局': cachedLayout,
+                '解析后边界': bounds
+            });
+            return bounds;
+        }
+
+        // 优先使用视口坐标（viewport-relative）
         if (element && typeof element.getBoundingClientRect === 'function') {
             const rect = element.getBoundingClientRect();
-            return {
+            const bounds = {
                 top: rect.top,
                 left: rect.left,
                 right: rect.right,
@@ -346,12 +439,45 @@ class ConstraintLayoutEngine {
                 width: rect.width,
                 height: rect.height
             };
+            console.log('📏 [ConstraintLayoutEngine] 计算节点边界 - 视口坐标:', {
+                '节点ID': node.id,
+                '节点名称': node.name,
+                '使用缓存': false,
+                '视口坐标': rect,
+                '计算结果': bounds
+            });
+            return bounds;
+        }
+
+        // 备用方案：使用父容器相对坐标
+        if (element && parentElement) {
+            const bounds = {
+                top: element.offsetTop,
+                left: element.offsetLeft,
+                width: element.offsetWidth,
+                height: element.offsetHeight,
+                right: element.offsetLeft + element.offsetWidth,
+                bottom: element.offsetTop + element.offsetHeight
+            };
+            console.log('📏 [ConstraintLayoutEngine] 计算节点边界 - 父容器相对坐标:', {
+                '节点ID': node.id,
+                '节点名称': node.name,
+                '使用缓存': false,
+                '父容器相对坐标': {
+                    offsetTop: element.offsetTop,
+                    offsetLeft: element.offsetLeft,
+                    offsetWidth: element.offsetWidth,
+                    offsetHeight: element.offsetHeight
+                },
+                '计算结果': bounds
+            });
+            return bounds;
         }
 
         // 回退到约束计算
         const width = this.calculateNodeDimension(nodeInfo, 'width');
         const height = this.calculateNodeDimension(nodeInfo, 'height');
-        return {
+        const bounds = {
             top: 0,
             left: 0,
             right: width,
@@ -359,6 +485,13 @@ class ConstraintLayoutEngine {
             width: width,
             height: height
         };
+        console.log('📏 [ConstraintLayoutEngine] 计算节点边界 - 回退约束计算:', {
+            '节点ID': node.id,
+            '节点名称': node.name,
+            '使用缓存': false,
+            '计算结果': bounds
+        });
+        return bounds;
     }
     /**
      * 处理参考边缘约束 - 改进版，支持精确位置计算
@@ -403,28 +536,69 @@ class ConstraintLayoutEngine {
             default:
                 referencePosition = 0;
         }
-        const finalValue = referencePosition + (value || 0);
-        // 根据当前属性设置布局
+        const absolutePosition = referencePosition + (value || 0);
+
+        // 获取父容器的实际边界位置
+        const nodeInfo = this.nodeCache.get(node.id);
+        const parentNode = nodeInfo ? nodeInfo.parentNode : null;
+        let parentBounds = { top: 0, left: 0, width: 353, height: 812 };
+
+        if (parentNode) {
+            const parentNodeInfo = this.nodeCache.get(parentNode.id);
+            if (parentNodeInfo) {
+                parentBounds = this.calculateNodeBounds(parentNodeInfo);
+            }
+        }
+
+        let relativePosition;
+        if (attribute === 'right' || attribute === 'trailing') {
+            // 对于right，计算相对于父容器右边的距离
+            relativePosition = parentBounds.width - (absolutePosition - parentBounds.left);
+        } else if (attribute === 'bottom') {
+            relativePosition = parentBounds.height - (absolutePosition - parentBounds.top);
+        } else {
+            // 对于left/top，计算相对于父容器左边/顶边的距离
+            relativePosition = absolutePosition - parentBounds.left;
+            if (attribute === 'top') {
+                relativePosition = absolutePosition - parentBounds.top;
+            }
+        }
+
+        // 确保位置非负
+        relativePosition = Math.max(0, relativePosition);
+
+        // 设置相对位置
         switch (attribute) {
             case 'top':
-                layout.top = `${finalValue}px`;
+                layout.top = `${relativePosition}px`;
                 break;
             case 'left':
-                layout.left = `${finalValue}px`;
+            case 'leading':
+                layout.left = `${relativePosition}px`;
                 break;
             case 'right':
-                layout.right = `${finalValue}px`;
+            case 'trailing':
+                layout.right = `${relativePosition}px`;
                 break;
             case 'bottom':
-                layout.bottom = `${finalValue}px`;
-                break;
-            case 'leading':
-                layout.left = `${finalValue}px`;
-                break;
-            case 'trailing':
-                layout.right = `${finalValue}px`;
+                layout.bottom = `${relativePosition}px`;
                 break;
         }
+
+        console.log('🔧 [ConstraintLayoutEngine] 计算参考边缘约束:', {
+            '当前节点': node.id,
+            '节点名称': node.name,
+            '约束属性': attribute,
+            '参考节点': reference.nodeId,
+            '参考属性': reference.attribute,
+            '参考位置': referencePosition,
+            '偏移值': value,
+            '绝对位置': absolutePosition,
+            '父容器ID': parentNode ? parentNode.id : '无',
+            '父容器边界': parentBounds,
+            '计算相对位置': relativePosition,
+            '最终设置位置': layout[attribute]
+        });
     }
     /**
      * 计算节点尺寸
@@ -502,18 +676,91 @@ class ConstraintLayoutEngine {
         });
     }
     /**
-     * 验证布局完整性
+     * 验证布局完整性 - 改进版，避免覆盖用户设置的高度约束
      * @param {Object} layout - 布局对象
      * @param {Object} node - 节点数据
      */
     validateLayout(layout, node) {
-        // 确保至少设置了宽度或高度
+        // 添加调试日志
+        console.log('🔍 [ConstraintLayoutEngine] 验证布局:', {
+            '节点ID': node.id,
+            '节点名称': node.name,
+            '当前高度': layout.height,
+            '当前最小高度': layout.minHeight,
+            '当前最大高度': layout.maxHeight,
+            '时间戳': new Date().toISOString()
+        });
+
+        // 检查节点是否有高度约束
+        const hasHeightConstraint = this.hasHeightConstraint(node);
+
+        // 确保至少设置了宽度或高度，但对于有高度约束的节点避免覆盖
         if (layout.width === 'auto' && !layout.minWidth && !layout.maxWidth) {
-            layout.width = '100px';
+            // 检查是否通过 left+right 隐式定义宽度
+            if (layout.left !== 'auto' && layout.right !== 'auto') {
+                // 获取父节点宽度
+                let parentWidth = 0;
+                const nodeInfo = this.nodeCache.get(node.id);
+                const parentNode = nodeInfo ? nodeInfo.parentNode : null;
+
+                if (parentNode) {
+                    const parentLayout = this.layoutCache.get(parentNode.id);
+                    if (parentLayout && parentLayout.width && parentLayout.width !== 'auto') {
+                        parentWidth = parseFloat(parentLayout.width);
+                    } else {
+                        // 如果父节点宽度未设置，尝试用默认值
+                        parentWidth = 100;
+                    }
+                } else {
+                    // 根节点，使用模拟器屏幕宽度
+                    parentWidth = 353;
+                }
+
+                // 解析left和right
+                const leftVal = parseFloat(layout.left);
+                const rightVal = Math.abs(parseFloat(layout.right)); // right为负值，取绝对值
+                const calculatedWidth = parentWidth - leftVal - rightVal;
+
+                // 设置计算后的宽度
+                layout.width = `${calculatedWidth}px`;
+                console.log('✅ [ConstraintLayoutEngine] 应用 left+right 计算宽度:', {
+                    '节点ID': node.id,
+                    '计算宽度': calculatedWidth,
+                    '父宽度': parentWidth,
+                    'left': leftVal,
+                    'right': rightVal
+                });
+            } else {
+                layout.width = '100px';
+            }
         }
-        if (layout.height === 'auto' && !layout.minHeight && !layout.maxHeight) {
-            layout.height = '50px';
+
+        // 只有当没有高度约束且没有设置任何高度相关属性时才设置默认高度
+        if (!hasHeightConstraint && layout.height === 'auto' && !layout.minHeight && !layout.maxHeight) {
+            // 检查是否通过 top+bottom 隐式定义高度
+            if (layout.top !== 'auto' && layout.bottom !== 'auto') {
+                console.log('✅ [ConstraintLayoutEngine] 保留 top+bottom 定义的高度:', {
+                    '节点ID': node.id,
+                    'top': layout.top,
+                    'bottom': layout.bottom
+                });
+            } else {
+                layout.height = '50px';
+                console.log('📏 [ConstraintLayoutEngine] 设置默认高度:', {
+                    '节点ID': node.id,
+                    '默认高度': layout.height,
+                    '原因': '无高度约束且未设置高度'
+                });
+            }
+        } else if (hasHeightConstraint) {
+            console.log('✅ [ConstraintLayoutEngine] 保留用户设置的高度约束:', {
+                '节点ID': node.id,
+                '最终高度': layout.height,
+                '最小高度': layout.minHeight,
+                '最大高度': layout.maxHeight
+            });
         }
+
         // 如果使用了绝对定位，确保设置了定位属性
         if (layout.position === 'absolute') {
             const hasPositioning =
@@ -527,6 +774,36 @@ class ConstraintLayoutEngine {
             }
         }
     }
+
+    /**
+     * 检查节点是否有高度约束
+     * @param {Object} node - 节点数据
+     * @returns {boolean} 是否有高度约束
+     */
+    hasHeightConstraint(node) {
+        if (!node.constraintPackages || node.constraintPackages.length === 0) {
+            return false;
+        }
+
+        // 检查所有约束包中的高度约束
+        for (const constraintPackage of node.constraintPackages) {
+            if (constraintPackage.constraints) {
+                for (const constraint of constraintPackage.constraints) {
+                    if (constraint.type === 'size' && constraint.attribute === 'height') {
+                        console.log('📐 [ConstraintLayoutEngine] 找到高度约束:', {
+                            '节点ID': node.id,
+                            '约束关系': constraint.relation,
+                            '约束值': constraint.value,
+                            '约束包': constraintPackage.name
+                        });
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
     /**
      * 应用布局到DOM元素
      * @param {HTMLElement} element - DOM元素
@@ -534,6 +811,19 @@ class ConstraintLayoutEngine {
      */
     applyLayout(element, layout) {
         Object.assign(element.style, layout);
+        console.log('🎯 [ConstraintLayoutEngine] 应用布局到DOM:', {
+            '节点ID': element.dataset.nodeId,
+            '最终布局': layout,
+            'DOM元素样式': {
+                top: element.style.top,
+                left: element.style.left,
+                right: element.style.right,
+                bottom: element.style.bottom,
+                width: element.style.width,
+                height: element.style.height,
+                position: element.style.position
+            }
+        });
     }
     /**
      * 清空缓存

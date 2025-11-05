@@ -173,6 +173,25 @@ class Simulator {
                 window.constraintLayoutEngine.clearCache();
             }
 
+            // 创建虚拟节点"00"代表模拟器屏幕
+            const simulatorNode = {
+                id: "00",
+                type: "simulator",
+                attributes: {
+                    width: this.contentContainer.clientWidth,
+                    height: this.contentContainer.clientHeight
+                }
+            };
+            // 缓存虚拟节点到约束布局引擎
+            if (window.constraintLayoutEngine) {
+                window.constraintLayoutEngine.nodeCache.set(simulatorNode.id, {
+                    node: simulatorNode,
+                    element: this.contentContainer,
+                    parentNode: null,
+                    parentElement: null
+                });
+            }
+
             // 创建根节点元素 - 根节点没有父节点，所以传递null
             const rootElement = this.createNodeElement(this.currentRootNode, true, null, this.contentContainer);
             this.contentContainer.appendChild(rootElement);
@@ -237,134 +256,114 @@ class Simulator {
     }
 
     /**
-     * 应用基础样式
+     * 应用基础样式 - 使用CSS类替代内联样式
      * @param {Object} node - 节点数据
      * @param {HTMLElement} element - DOM元素
      * @param {boolean} isRoot - 是否是根节点
      */
     applyBaseStyles(node, element, isRoot) {
-        const styles = {
-            position: 'relative',
-            boxSizing: 'border-box',
-            display: 'flex'
-        };
+        // 应用基础CSS类
+        element.classList.add('simulator-node-base');
 
-        // 根节点特殊处理
+        // 根据节点类型和布局应用特定CSS类
         if (isRoot) {
-            styles.width = '100%';
-            styles.height = '100%';
-            styles.minHeight = '100%';
-            styles.overflow = 'hidden';
+            element.classList.add('simulator-node-root');
+            console.log('🌱 [Simulator] 应用根节点基础样式:', {
+                '节点ID': node.id,
+                '节点名称': node.name,
+                '时间戳': new Date().toISOString()
+            });
         } else {
-            styles.flex = '0 0 auto';
+            element.classList.add('simulator-node-child');
         }
 
-        // 应用布局方向
+        // 应用布局方向CSS类
         if (node.layout === 'vertical') {
-            styles.flexDirection = 'column';
+            element.classList.add('simulator-layout-vertical');
         } else {
-            styles.flexDirection = 'row';
+            element.classList.add('simulator-layout-horizontal');
         }
-
-        // 应用样式到元素
-        Object.assign(element.style, styles);
     }
 
     /**
-     * 应用属性样式 - 增强版，支持5个基本属性和字体属性
+     * 应用属性样式 - 使用CSS变量和类替代内联样式
      * @param {Object} node - 节点数据
      * @param {HTMLElement} element - DOM元素
      */
     applyAttributeStyles(node, element) {
         if (!node.attributes) return;
 
-        const styles = {};
-
-        // 1. 处理5个基本属性
-        // 背景颜色
+        // 使用CSS变量设置动态属性
         if (node.attributes.backgroundColor) {
-            styles.backgroundColor = this.parseColor(node.attributes.backgroundColor);
+            element.style.setProperty('--background-color', this.parseColor(node.attributes.backgroundColor));
         }
 
-        // 透明度
         if (node.attributes.alpha !== undefined) {
-            styles.opacity = node.attributes.alpha;
+            element.style.setProperty('--opacity', node.attributes.alpha);
         }
 
-        // 圆角
         if (node.attributes.cornerRadius) {
-            styles.borderRadius = `${node.attributes.cornerRadius}px`;
+            // 处理圆角位置设置
+            this.applyCornerRadius(node, element);
         }
 
-        // 边框宽度
         if (node.attributes.borderWidth) {
-            styles.borderWidth = `${node.attributes.borderWidth}px`;
-            styles.borderStyle = 'solid';
+            element.style.setProperty('--border-width', `${node.attributes.borderWidth}px`);
         }
 
-        // 边框颜色
         if (node.attributes.borderColor) {
-            styles.borderColor = this.parseColor(node.attributes.borderColor);
+            element.style.setProperty('--border-color', this.parseColor(node.attributes.borderColor));
         }
 
-        // 2. 处理字体相关属性（针对UILabel、UIButton、UITextField）
+        // 处理字体相关属性
         if (['UILabel', 'UIButton', 'UITextField', 'UITextView'].includes(node.type)) {
-            // 字体大小
             if (node.attributes.fontSize) {
-                styles.fontSize = `${node.attributes.fontSize}px`;
+                element.style.setProperty('--font-size', `${node.attributes.fontSize}px`);
             }
 
-            // 文本颜色
             if (node.attributes.textColor) {
-                styles.color = this.parseColor(node.attributes.textColor);
+                element.style.setProperty('--text-color', this.parseColor(node.attributes.textColor));
             }
 
-            // 文本对齐
             if (node.attributes.textAlignment) {
-                styles.textAlign = node.attributes.textAlignment;
+                element.style.setProperty('--text-align', node.attributes.textAlignment);
             }
 
-            // 字体样式
+            // 字体样式通过CSS类应用
             if (node.attributes.font) {
-                this.applyFontStyle(node.attributes.font, styles);
+                this.applyFontStyle(node.attributes.font, element);
             }
 
-            // 按钮标题颜色
             if (node.type === 'UIButton' && node.attributes.titleColor) {
-                styles.color = this.parseColor(node.attributes.titleColor);
+                element.style.setProperty('--title-color', this.parseColor(node.attributes.titleColor));
             }
         }
 
-        // 3. 处理通用属性
-        // 文本内容
+        // 处理通用属性
         if (node.attributes.text) {
             element.textContent = node.attributes.text;
         }
 
-        // 占位符文本
         if (node.attributes.placeholder) {
             element.setAttribute('placeholder', node.attributes.placeholder);
         }
 
-        // 宽度和高度
+        // 宽度和高度通过CSS变量设置
         if (node.attributes.width) {
-            styles.width = `${node.attributes.width}px`;
+            element.style.setProperty('--width', `${node.attributes.width}px`);
         }
 
         if (node.attributes.height) {
-            styles.height = `${node.attributes.height}px`;
+            element.style.setProperty('--height', `${node.attributes.height}px`);
         }
-
-        // 应用样式到元素
-        Object.assign(element.style, styles);
     }
 
     /**
      * 应用字体样式
      * @param {string} font - 字体类型
-     * @param {Object} styles - 样式对象
+     * @param {HTMLElement} element - DOM元素
      */
-    applyFontStyle(font, styles) {
+    applyFontStyle(font, element) {
         const fontMap = {
             'system-17': { family: '-apple-system', size: 17, weight: 'normal' },
             'system-bold-17': { family: '-apple-system', size: 17, weight: 'bold' },
@@ -382,41 +381,38 @@ class Simulator {
 
         const fontConfig = fontMap[font] || fontMap['system-17'];
 
-        styles.fontFamily = fontConfig.family;
-        styles.fontSize = `${fontConfig.size}px`;
-        styles.fontWeight = fontConfig.weight;
+        element.style.fontFamily = fontConfig.family;
+        element.style.fontSize = `${fontConfig.size}px`;
+        element.style.fontWeight = fontConfig.weight;
 
         if (fontConfig.style) {
-            styles.fontStyle = fontConfig.style;
+            element.style.fontStyle = fontConfig.style;
         }
     }
 
     /**
-     * 应用布局样式
+     * 应用布局样式 - 使用CSS类替代内联样式
      * @param {Object} node - 节点数据
      * @param {HTMLElement} element - DOM元素
      */
     applyLayoutStyles(node, element) {
-        const styles = {};
-
         // 处理对齐方式
         if (node.attributes?.alignment) {
             switch (node.attributes.alignment) {
                 case 'center':
-                    styles.justifyContent = 'center';
-                    styles.alignItems = 'center';
+                    element.classList.add('simulator-align-center');
                     break;
                 case 'leading':
-                    styles.justifyContent = 'flex-start';
+                    element.classList.add('simulator-align-leading');
                     break;
                 case 'trailing':
-                    styles.justifyContent = 'flex-end';
+                    element.classList.add('simulator-align-trailing');
                     break;
                 case 'top':
-                    styles.alignItems = 'flex-start';
+                    element.classList.add('simulator-align-top');
                     break;
                 case 'bottom':
-                    styles.alignItems = 'flex-end';
+                    element.classList.add('simulator-align-bottom');
                     break;
             }
         }
@@ -425,19 +421,16 @@ class Simulator {
         if (node.attributes?.distribution) {
             switch (node.attributes.distribution) {
                 case 'fill':
-                    styles.flex = '1';
+                    element.classList.add('simulator-distribution-fill');
                     break;
                 case 'fillEqually':
-                    styles.flex = '1';
+                    element.classList.add('simulator-distribution-fillEqually');
                     break;
                 case 'equalSpacing':
-                    styles.justifyContent = 'space-between';
+                    element.classList.add('simulator-distribution-equalSpacing');
                     break;
             }
         }
-
-        // 应用样式到元素
-        Object.assign(element.style, styles);
     }
 
     /**
@@ -478,12 +471,24 @@ class Simulator {
      * @param {HTMLElement} element - DOM元素
      */
     addLabelContent(node, element) {
-        const text = node.attributes?.text || node.name || 'Label';
+        const text = node.attributes?.text ?? 'Label';
         element.textContent = text;
-        element.style.display = 'flex';
-        element.style.alignItems = 'center';
-        element.style.justifyContent = 'center';
-        element.style.padding = '8px';
+        element.className += ' simulator-label-content';
+
+        const textAlignment = node.attributes?.textAlignment;
+        switch (textAlignment) {
+            case 'left':
+                element.classList.add('simulator-label-left');
+                break;
+            case 'right':
+                element.classList.add('simulator-label-right');
+                break;
+            case 'center':
+                element.classList.add('simulator-label-center');
+                break;
+            default:
+                element.classList.add('simulator-label-left');
+        }
     }
 
     /**
@@ -492,15 +497,9 @@ class Simulator {
      * @param {HTMLElement} element - DOM元素
      */
     addButtonContent(node, element) {
-        const title = node.attributes?.title || node.name || 'Button';
+        const title = node.attributes?.title ?? '';
         element.textContent = title;
-        element.style.display = 'flex';
-        element.style.alignItems = 'center';
-        element.style.justifyContent = 'center';
-        element.style.padding = '12px 24px';
-        element.style.borderRadius = '8px';
-        element.style.cursor = 'pointer';
-        element.style.fontWeight = '600';
+        element.className += ' simulator-button-content';
     }
 
     /**
@@ -511,16 +510,14 @@ class Simulator {
     addTextFieldContent(node, element) {
         const placeholder = node.attributes?.placeholder || '请输入文本';
         const text = node.attributes?.text || '';
-        element.innerHTML = `
-            <input type="text" placeholder="${placeholder}" value="${text}" style="
-                width: 100%;
-                padding: 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                font-size: 16px;
-                background: transparent;
-            ">
-        `;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = placeholder;
+        input.value = text;
+        input.className = 'simulator-textfield-input';
+
+        element.appendChild(input);
     }
 
     /**
@@ -530,18 +527,12 @@ class Simulator {
      */
     addTextViewContent(node, element) {
         const text = node.attributes?.text || '';
-        element.innerHTML = `
-            <textarea style="
-                width: 100%;
-                height: 100%;
-                padding: 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                font-size: 16px;
-                background: transparent;
-                resize: none;
-            ">${text}</textarea>
-        `;
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'simulator-textview-textarea';
+        textarea.value = text;
+
+        element.appendChild(textarea);
     }
 
     /**
@@ -550,21 +541,29 @@ class Simulator {
      * @param {HTMLElement} element - DOM元素
      */
     addImageViewContent(node, element) {
+        const testUrl = node.attributes?.testUrl;
         const imageName = node.attributes?.imageName || 'placeholder';
-        element.innerHTML = `
-            <div style="
-                width: 100%;
-                height: 100%;
-                background: #f0f0f0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #999;
-                font-size: 14px;
-            ">
-                ${imageName}
-            </div>
-        `;
+        const backgroundColor = this.parseColor(node.attributes?.backgroundColor || '#FFFFFF');
+
+        if (testUrl) {
+            // 使用远程图片
+            const img = document.createElement('img');
+            img.src = testUrl;
+            img.className = 'simulator-imageview-img';
+
+            // 使用CSS变量设置动态属性
+            img.style.setProperty('--object-fit', node.attributes?.contentMode || 'scaleToFill');
+            img.style.setProperty('--background-color', backgroundColor);
+
+            element.appendChild(img);
+        } else {
+            // 没有远程图片时，显示背景色和占位文本
+            const placeholderDiv = document.createElement('div');
+            placeholderDiv.className = 'simulator-imageview-placeholder';
+            placeholderDiv.style.setProperty('--background-color', backgroundColor);
+            placeholderDiv.textContent = imageName;
+            element.appendChild(placeholderDiv);
+        }
     }
 
     /**
@@ -573,21 +572,10 @@ class Simulator {
      * @param {HTMLElement} element - DOM元素
      */
     addDefaultContent(node, element) {
-        element.innerHTML = `
-            <div style="
-                width: 100%;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #666;
-                font-size: 12px;
-                border: 1px dashed #ddd;
-                padding: 8px;
-            ">
-                ${node.type}
-            </div>
-        `;
+        const defaultDiv = document.createElement('div');
+        defaultDiv.className = 'simulator-default-content';
+        defaultDiv.textContent = node.type;
+        element.appendChild(defaultDiv);
     }
 
     /**
@@ -786,6 +774,52 @@ class Simulator {
     }
 
     /**
+     * 应用圆角样式
+     * @param {Object} node - 节点数据
+     * @param {HTMLElement} element - DOM元素
+     */
+    applyCornerRadius(node, element) {
+        const cornerRadius = node.attributes.cornerRadius;
+        const cornerMask = node.attributes.cornerMask || '';
+
+        if (!cornerRadius) return;
+
+        // 如果没有设置圆角位置，默认四个角都是圆角
+        if (!cornerMask) {
+            element.style.borderRadius = `${cornerRadius}px`;
+            return;
+        }
+
+        // 解析选中的角
+        const selectedCorners = cornerMask.split(',');
+
+        // 设置各个角的圆角
+        if (selectedCorners.includes('top-left')) {
+            element.style.borderTopLeftRadius = `${cornerRadius}px`;
+        } else {
+            element.style.borderTopLeftRadius = '0';
+        }
+
+        if (selectedCorners.includes('top-right')) {
+            element.style.borderTopRightRadius = `${cornerRadius}px`;
+        } else {
+            element.style.borderTopRightRadius = '0';
+        }
+
+        if (selectedCorners.includes('bottom-left')) {
+            element.style.borderBottomLeftRadius = `${cornerRadius}px`;
+        } else {
+            element.style.borderBottomLeftRadius = '0';
+        }
+
+        if (selectedCorners.includes('bottom-right')) {
+            element.style.borderBottomRightRadius = `${cornerRadius}px`;
+        } else {
+            element.style.borderBottomRightRadius = '0';
+        }
+    }
+
+    /**
      * 解析颜色值
      * @param {string} color - 颜色值
      * @returns {string} 解析后的颜色值
@@ -849,8 +883,12 @@ class Simulator {
      * 应用缩放
      */
     applyZoom() {
-        this.container.style.transform = `scale(${this.zoomLevel})`;
-        this.container.style.transformOrigin = 'center center';
+        const device = this.devicePresets[this.currentDevice];
+        const scale = this.zoomLevel;
+        this.container.style.transform = `scale(${scale})`;
+        this.container.style.transformOrigin = 'top center';  // 改为从顶部开始缩放
+        // 调整容器高度以匹配缩放后的视觉大小
+        this.container.style.height = `${device.height / scale}px`;
     }
 
     /**
@@ -896,14 +934,16 @@ class Simulator {
      * 显示占位符
      */
     showPlaceholder() {
-        this.placeholder.style.display = 'flex';
+        this.placeholder.classList.add('simulator-placeholder-visible');
+        this.placeholder.classList.remove('simulator-placeholder-hidden');
     }
 
     /**
      * 隐藏占位符
      */
     hidePlaceholder() {
-        this.placeholder.style.display = 'none';
+        this.placeholder.classList.add('simulator-placeholder-hidden');
+        this.placeholder.classList.remove('simulator-placeholder-visible');
     }
 
     /**
@@ -945,18 +985,20 @@ class Simulator {
         this.clearContent();
         const errorElement = document.createElement('div');
         errorElement.className = 'simulator-error';
-        errorElement.innerHTML = `
-            <div style="
-                color: #FF3B30;
-                padding: 20px;
-                text-align: center;
-                background: #FFE5E5;
-                border-radius: 8px;
-                margin: 20px;
-            ">
-                <strong>错误:</strong> ${message}
-            </div>
-        `;
+
+        const errorContent = document.createElement('div');
+        errorContent.className = 'simulator-error-content';
+
+        // 使用DOM操作替代innerHTML
+        const strongElement = document.createElement('strong');
+        strongElement.textContent = '错误:';
+
+        const messageText = document.createTextNode(` ${message}`);
+
+        errorContent.appendChild(strongElement);
+        errorContent.appendChild(messageText);
+
+        errorElement.appendChild(errorContent);
         this.contentContainer.appendChild(errorElement);
     }
 
@@ -966,12 +1008,23 @@ class Simulator {
     updateContextDisplay() {
         const contextElement = document.getElementById('current-context');
         if (contextElement && this.currentRootNode) {
-            contextElement.innerHTML = `
-                <p><strong>节点ID:</strong> ${this.currentRootNode.id}</p>
-                <p><strong>节点名称:</strong> ${this.currentRootNode.name}</p>
-                <p><strong>节点类型:</strong> ${this.currentRootNode.type}</p>
-                <p><strong>子节点数:</strong> ${this.currentRootNode.children?.length || 0}</p>
-            `;
+            // 清空现有内容
+            contextElement.innerHTML = '';
+
+            // 使用DOM操作创建上下文信息
+            const createInfoLine = (label, value) => {
+                const p = document.createElement('p');
+                const strong = document.createElement('strong');
+                strong.textContent = `${label}:`;
+                p.appendChild(strong);
+                p.appendChild(document.createTextNode(` ${value}`));
+                return p;
+            };
+
+            contextElement.appendChild(createInfoLine('节点ID', this.currentRootNode.id));
+            contextElement.appendChild(createInfoLine('节点名称', this.currentRootNode.name));
+            contextElement.appendChild(createInfoLine('节点类型', this.currentRootNode.type));
+            contextElement.appendChild(createInfoLine('子节点数', this.currentRootNode.children?.length || 0));
         }
     }
 
@@ -984,20 +1037,6 @@ class Simulator {
         const notification = document.createElement('div');
         notification.className = 'simulator-notification';
         notification.textContent = message;
-        notification.style.cssText = `
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 12px;
-            z-index: 1000;
-            animation: fadeInOut 2s ease-in-out;
-        `;
-
         this.container.appendChild(notification);
 
         // 2秒后自动移除
@@ -1037,82 +1076,6 @@ class Simulator {
     }
 }
 
-// 添加CSS动画
-const simulatorStyle = document.createElement('style');
-simulatorStyle.textContent = `
-    @keyframes fadeInOut {
-        0% { opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { opacity: 0; }
-    }
-
-    .simulator-node {
-        transition: all 0.2s ease;
-    }
-
-    .simulator-node:hover {
-        outline: 2px solid #007AFF;
-        outline-offset: -2px;
-    }
-
-    .simulator-error {
-        animation: shake 0.5s ease-in-out;
-    }
-
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
-    }
-
-    .simulator-children {
-        display: flex;
-        flex: 1;
-    }
-
-    /* 组件特定样式 */
-    .simulator-node.uiview {
-        background-color: #FFFFFF;
-    }
-
-    .simulator-node.uilabel {
-        background-color: transparent;
-    }
-
-    .simulator-node.uibutton {
-        background-color: #007AFF;
-        color: white;
-        border-radius: 8px;
-        cursor: pointer;
-        user-select: none;
-    }
-
-    .simulator-node.uibutton:hover {
-        background-color: #0056CC;
-    }
-
-    .simulator-node.uitextfield {
-        background-color: #FFFFFF;
-        border: 1px solid #C7C7CC;
-        border-radius: 8px;
-    }
-
-    .simulator-node.uiimageview {
-        background-color: #F2F2F7;
-        border-radius: 8px;
-    }
-
-    .simulator-node.uistackview {
-        background-color: transparent;
-    }
-
-    .simulator-node.uiscrollview {
-        background-color: #FFFFFF;
-        overflow: auto;
-    }
-`;
-document.head.appendChild(simulatorStyle);
 
 // 创建全局模拟器实例
 let simulator = null;

@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.openai.com https://api.deepseek.com;">
     <title>iOS UI Editor</title>
     <link rel="stylesheet" href="src/styles/main.css">
     <link rel="stylesheet" href="src/styles/property-editor.css">
@@ -185,37 +187,10 @@
         </section>
     </div>
 
-    <!-- 组件类型选择对话框 -->
-    <div id="component-type-dialog" class="modal-dialog" style="display: none;">
-        <div class="dialog-content">
-            <h3>选择组件类型</h3>
-            <div id="component-type-list" class="component-type-list">
-                <!-- 组件类型列表将动态生成 -->
-            </div>
-            <div class="dialog-actions">
-                <button id="cancel-component-btn" class="btn-secondary">取消</button>
-                <button id="confirm-component-btn" class="btn-primary">确认</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- AI 命令确认对话框 -->
-    <div id="ai-command-dialog" class="modal-dialog" style="display: none;">
-        <div class="dialog-content">
-            <h3>AI 修改命令确认</h3>
-            <div id="command-list" class="command-list">
-                <!-- 命令列表将动态生成 -->
-            </div>
-            <div class="dialog-actions">
-                <button id="cancel-command-btn" class="btn-secondary">取消</button>
-                <button id="execute-all-commands-btn" class="btn-primary">执行全部</button>
-                <button id="execute-selected-commands-btn" class="btn-primary">执行选中</button>
-            </div>
-        </div>
-    </div>
 
     <!-- JSON 查看器对话框 -->
-    <div id="json-viewer-dialog" class="modal-dialog" style="display: none;">
+    <div id="json-viewer-dialog" class="modal-dialog hidden">
         <div class="dialog-content json-viewer-dialog">
             <h3>UI 层级树 JSON 内容</h3>
             <div class="json-viewer-actions">

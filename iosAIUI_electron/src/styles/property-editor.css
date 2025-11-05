@@ -4,12 +4,17 @@
 .attribute-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px;
+    gap: 12px;
+    /* 增加间距 */
+    padding: 12px;
+    /* 增加内边距 1.5倍 */
     border: 1px solid #e0e0e0;
     border-radius: 4px;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
+    /* 增加底部间距 1.5倍 */
     background-color: #fafafa;
+    min-height: 48px;
+    /* 确保最小高度 */
 }
 
 .attribute-item.predefined-attribute {
@@ -36,7 +41,8 @@
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    /* 增加间距 */
 }
 
 /* 文本输入框 */
@@ -624,5 +630,82 @@ input:checked+.boolean-slider:before {
 
     .state-header h5 {
         flex: 1;
+    }
+}
+
+/* 圆角位置输入控件样式 */
+.corner-mask-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    min-height: 60px;
+}
+
+.corners-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    /* 增加间距 */
+}
+
+.corner-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* 增加间距 */
+    padding: 8px 12px;
+    /* 增加内边距 */
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.2s;
+    min-height: 32px;
+    /* 确保最小高度 */
+}
+
+.corner-item:hover {
+    border-color: #007AFF;
+    background-color: #f0f8ff;
+}
+
+.corner-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    width: 16px;
+    /* 增大复选框 */
+    height: 16px;
+}
+
+.corner-label {
+    font-size: 13px;
+    /* 增大字体 */
+    color: #495057;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.corner-item input[type="checkbox"]:checked+.corner-label {
+    color: #007AFF;
+    font-weight: 600;
+}
+
+.corner-item input[type="checkbox"]:checked {
+    accent-color: #007AFF;
+}
+
+/* 圆角位置输入控件的响应式设计 */
+@media (max-width: 768px) {
+    .corners-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .corner-item {
+        justify-content: space-between;
     }
 }

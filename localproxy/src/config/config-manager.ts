@@ -82,19 +82,53 @@ export class ConfigManager {
         }
     }
 
-    public async saveMockServerConfig(config: MockServerConfig): Promise<void> {
-        // 查找是否已存在相同ID的配置
-        const existingIndex = this.config.mockServers.findIndex(server => server.id === config.id);
+    public async saveMockServerConfig(config: MockServerConfig): Promise<{ success: boolean; message?: string }> {
+        // 查找是否已存在相同名称的配置（使用名称作为唯一key）
+        const existingIndex = this.config.mockServers.findIndex(server => server.name === config.name);
+
+        // 检查是否有默认配置冲突（相同端口和路径只能有一个默认配置）
+        if (config.routes.some(route => route.isDefault)) {
+            const defaultRoute = config.routes.find(route => route.isDefault);
+            if (defaultRoute) {
+                // 查找相同端口和路径的其他默认配置
+                const conflictingDefault = this.config.mockServers.find(server =>
+                    server.port === config.port &&
+                    server.id !== config.id && // 排除自身
+                    server.routes.some(route =>
+                        route.path === defaultRoute.path &&
+                        route.isDefault
+                    )
+                );
+
+                if (conflictingDefault) {
+                    // 自动取消其他配置的默认状态
+                    this.config.mockServers = this.config.mockServers.map(server => {
+                        if (server.id === conflictingDefault.id) {
+                            return {
+                                ...server,
+                                routes: server.routes.map(route => ({
+                                    ...route,
+                                    isDefault: false
+                                }))
+                            };
+                        }
+                        return server;
+                    });
+                }
+            }
+        }
 
         if (existingIndex >= 0) {
             // 更新现有配置
             this.config.mockServers[existingIndex] = config;
+            await this.saveConfig({ mockServers: this.config.mockServers });
+            return { success: true, message: '配置已更新' };
         } else {
             // 添加新配置
             this.config.mockServers.push(config);
+            await this.saveConfig({ mockServers: this.config.mockServers });
+            return { success: true, message: '配置已保存' };
         }
-
-        await this.saveConfig({ mockServers: this.config.mockServers });
     }
 
     public async deleteMockServerConfig(id: string): Promise<void> {
@@ -158,5 +192,9 @@ export class ConfigManager {
 
     public getSettings(): AppConfig['settings'] {
         return this.config.settings;
+    }
+
+    public getConfigPath(): string {
+        return this.configPath;
     }
 }

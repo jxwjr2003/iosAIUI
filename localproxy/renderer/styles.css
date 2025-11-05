@@ -41,19 +41,22 @@ body {
 }
 
 .servers-panel {
-    flex: 1;
+    flex: 1 1 60%;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem;
     min-width: 400px;
-    overflow-y: auto;
+    max-width: 70%;
+    overflow: hidden;
+    resize: horizontal;
+    height: 100%;
 }
 
 .logs-panel {
-    flex: 1;
+    flex: 1 1 40%;
     display: flex;
     flex-direction: column;
-    min-width: 500px;
+    min-width: 300px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -212,7 +215,7 @@ body {
 }
 
 .config-list-container {
-    max-height: 200px;
+    max-height: 800px;
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -226,16 +229,98 @@ body {
     gap: 0.5rem;
 }
 
+/* Tab 布局 */
+.server-tabs {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.tab-nav {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 1rem;
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tab-button.active {
+    background: white;
+    color: #667eea;
+    border-bottom: 2px solid #667eea;
+}
+
+.tab-content {
+    padding: 1.5rem;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* JSON 文本区域 */
+.json-textarea {
+    min-height: 200px;
+    max-height: 70vh;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    resize: vertical;
+    transition: height 0.2s ease;
+    overflow-y: auto;
+}
+
+.json-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.json-actions .btn {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+/* 优化配置列表 */
 .config-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
+    align-items: flex-start;
+    padding: 0.5rem;
     background: white;
     border: 1px solid #e9ecef;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
+    margin-bottom: 0.25rem;
 }
 
 .config-item:hover {
@@ -255,6 +340,42 @@ body {
 .config-item-name {
     font-weight: 600;
     color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.default-badge {
+    background: #28a745;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: #555;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin: 0;
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+.help-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
 }
 
 .config-item-description {
@@ -516,11 +637,19 @@ body {
     background: #f8f9fa;
 }
 
+/* 字段错误高亮 */
+.field-error {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1) !important;
+    background-color: #fff5f5 !important;
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
     .main-content {
         flex-direction: column;
         padding: 1rem;
+        overflow: visible;
     }
 
     .servers-panel,
@@ -531,6 +660,7 @@ body {
     .servers-panel {
         flex-direction: row;
         gap: 1rem;
+        max-height: none;
     }
 
     .server-config {
@@ -539,6 +669,10 @@ body {
 
     .form-row {
         flex-direction: column;
+    }
+
+    .tab-content {
+        max-height: 500px;
     }
 }
 

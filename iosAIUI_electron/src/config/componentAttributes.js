@@ -9,6 +9,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -16,6 +17,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -23,9 +25,19 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' },
-        font: { type: 'select', defaultValue: 'system-17', options: [] },
+        font: {
+            type: 'select',
+            defaultValue: 'system',
+            options: [
+                { value: 'system', label: '系统字体' },
+                { value: 'system-bold', label: '系统粗体' },
+                { value: 'preferred-headline', label: '标题' },
+                { value: 'preferred-body', label: '正文' }
+            ]
+        },
         fontSize: { type: 'number', defaultValue: 17, min: 8, max: 72, step: 1 },
         title: { type: 'text', defaultValue: 'Button' },
         titleColor: { type: 'color', defaultValue: '#007AFF' },
@@ -34,22 +46,65 @@ const COMPONENT_ATTRIBUTES = {
     },
     'UILabel': {
         text: { type: 'text', defaultValue: 'Label' },
-        font: { type: 'select', defaultValue: 'system-17', options: [] },
+        font: {
+            type: 'select',
+            defaultValue: 'system',
+            options: [
+                { value: 'system', label: '系统字体' },
+                { value: 'system-bold', label: '系统粗体' },
+                { value: 'system-italic', label: '系统斜体' },
+                { value: 'preferred-headline', label: '标题' },
+                { value: 'preferred-body', label: '正文' },
+                { value: 'preferred-caption1', label: '说明文字1' },
+                { value: 'preferred-caption2', label: '说明文字2' },
+                { value: 'preferred-footnote', label: '脚注' }
+            ]
+        },
         fontSize: { type: 'number', defaultValue: 17, min: 8, max: 72, step: 1 },
         textColor: { type: 'color', defaultValue: '#000000' },
-        textAlignment: { type: 'select', defaultValue: 'left', options: [] },
+        textAlignment: {
+            type: 'select',
+            defaultValue: 'left',
+            options: [
+                { value: 'left', label: '左对齐' },
+                { value: 'center', label: '居中' },
+                { value: 'right', label: '右对齐' },
+                { value: 'justified', label: '两端对齐' },
+                { value: 'natural', label: '自然' }
+            ]
+        },
         numberOfLines: { type: 'number', defaultValue: 1, min: 0 },
-        lineBreakMode: { type: 'select', defaultValue: 'truncateTail', options: [] },
+        lineBreakMode: {
+            type: 'select',
+            defaultValue: 'byTruncatingTail',
+            options: [
+                { value: 'byWordWrapping', label: '按单词换行' },
+                { value: 'byCharWrapping', label: '按字符换行' },
+                { value: 'byClipping', label: '裁剪' },
+                { value: 'byTruncatingHead', label: '截断头部' },
+                { value: 'byTruncatingTail', label: '截断尾部' },
+                { value: 'byTruncatingMiddle', label: '截断中间' }
+            ]
+        },
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
     'UITextField': {
         placeholder: { type: 'text', defaultValue: '请输入文本' },
         text: { type: 'text', defaultValue: '' },
-        font: { type: 'select', defaultValue: 'system-17', options: [] },
+        font: {
+            type: 'select',
+            defaultValue: 'system',
+            options: [
+                { value: 'system', label: '系统字体' },
+                { value: 'system-bold', label: '系统粗体' },
+                { value: 'preferred-body', label: '正文' }
+            ]
+        },
         fontSize: { type: 'number', defaultValue: 17, min: 8, max: 72, step: 1 },
         textColor: { type: 'color', defaultValue: '#000000' },
         textAlignment: { type: 'select', defaultValue: 'left', options: [] },
@@ -59,6 +114,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -113,6 +169,7 @@ const COMPONENT_ATTRIBUTES = {
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
     'UIImageView': {
+        testUrl: { type: 'text', defaultValue: '' },
         imageName: { type: 'text', defaultValue: 'placeholder' },
         contentMode: { type: 'select', defaultValue: 'scaleToFill', options: [] },
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },

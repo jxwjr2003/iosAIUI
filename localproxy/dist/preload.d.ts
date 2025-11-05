@@ -13,6 +13,7 @@ declare const api: {
         deleteMockConfig: (id: string) => Promise<any>;
         load: () => Promise<any>;
         list: () => Promise<any>;
+        openLocation: () => Promise<any>;
     };
     logs: {
         get: (filter?: any) => Promise<any>;

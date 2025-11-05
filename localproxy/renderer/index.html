@@ -19,162 +19,174 @@
 
         <main class="main-content">
             <div class="servers-panel">
-                <!-- 模拟服务器配置管理 -->
-                <section class="server-config">
-                    <h2>模拟服务器配置管理</h2>
-                    <div class="config-management">
-                        <div class="config-list-container">
-                            <h3>已保存的配置</h3>
-                            <div id="mockConfigList" class="config-list"></div>
-                            <div class="config-actions">
-                                <button id="newMockConfig" class="btn btn-primary">新建配置</button>
-                                <button id="saveMockConfig" class="btn btn-success" disabled>保存配置</button>
-                            </div>
-                        </div>
+                <!-- 服务器配置 Tab -->
+                <div class="server-tabs">
+                    <div class="tab-nav">
+                        <button class="tab-button active" data-tab="mock">模拟服务器配置</button>
+                        <button class="tab-button" data-tab="proxy">代理服务器配置</button>
                     </div>
-                </section>
-
-                <!-- 模拟服务器配置 -->
-                <section class="server-config">
-                    <h2>模拟服务器配置</h2>
-                    <form id="mockServerForm" class="server-form">
-                        <div class="form-group">
-                            <label for="mockConfigName">配置名称</label>
-                            <input type="text" id="mockConfigName" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="mockConfigDescription">配置描述</label>
-                            <textarea id="mockConfigDescription" name="description" rows="2"
-                                placeholder="配置描述..."></textarea>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="mockPort">端口号</label>
-                                <input type="number" id="mockPort" name="port" min="1" max="65535" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="mockProtocol">协议</label>
-                                <select id="mockProtocol" name="protocol" required>
-                                    <option value="http">HTTP</option>
-                                    <option value="https">HTTPS</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 路由配置 -->
-                        <div class="route-config">
-                            <h3>API 路由配置</h3>
-                            <div class="route-form">
+                    <div class="tab-content">
+                        <!-- 模拟服务器配置 -->
+                        <div class="tab-pane active" id="mock-tab">
+                            <form id="mockServerForm" class="server-form">
+                                <div class="form-group">
+                                    <label for="mockConfigName">配置名称</label>
+                                    <input type="text" id="mockConfigName" name="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="mockConfigDescription">配置描述</label>
+                                    <input type="text" id="mockConfigDescription" name="description"
+                                        placeholder="配置描述...">
+                                </div>
+                                <div class="form-group">
+                                    <label>JSON响应</label>
+                                    <textarea id="jsonBody" class="json-textarea"
+                                        placeholder='{"key": "value"}'></textarea>
+                                    <div class="json-actions">
+                                        <button id="confirmJson" class="btn btn-primary">确定</button>
+                                        <button id="editJson" class="btn btn-secondary" disabled>编辑</button>
+                                    </div>
+                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="routeMethod">HTTP 方法</label>
-                                        <select id="routeMethod" name="method" required>
-                                            <option value="GET">GET</option>
-                                            <option value="POST">POST</option>
-                                            <option value="PUT">PUT</option>
-                                            <option value="DELETE">DELETE</option>
-                                            <option value="PATCH">PATCH</option>
-                                            <option value="OPTIONS">OPTIONS</option>
-                                            <option value="HEAD">HEAD</option>
-                                        </select>
+                                        <label for="mockPort">端口号</label>
+                                        <input type="number" id="mockPort" name="port" min="1" max="65535" required>
                                     </div>
                                     <div class="form-group">
-                                        <label for="routePath">API 路径</label>
-                                        <input type="text" id="routePath" name="path" placeholder="/api/users" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="routeStatusCode">状态码</label>
-                                        <select id="routeStatusCode" name="statusCode" required>
-                                            <option value="200">200 OK</option>
-                                            <option value="201">201 Created</option>
-                                            <option value="400">400 Bad Request</option>
-                                            <option value="404">404 Not Found</option>
-                                            <option value="500">500 Internal Server Error</option>
-                                            <option value="503">503 Service Unavailable</option>
+                                        <label for="mockProtocol">协议</label>
+                                        <select id="mockProtocol" name="protocol" required>
+                                            <option value="http">HTTP</option>
+                                            <option value="https">HTTPS</option>
                                         </select>
                                     </div>
                                 </div>
 
+                                <!-- 路由配置 -->
+                                <div class="route-config">
+                                    <h3>API 路由配置</h3>
+                                    <div class="route-form">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="routeMethod">HTTP 方法</label>
+                                                <select id="routeMethod" name="method" required>
+                                                    <option value="GET">GET</option>
+                                                    <option value="POST">POST</option>
+                                                    <option value="PUT">PUT</option>
+                                                    <option value="DELETE">DELETE</option>
+                                                    <option value="PATCH">PATCH</option>
+                                                    <option value="OPTIONS">OPTIONS</option>
+                                                    <option value="HEAD">HEAD</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="routePath">API 路径</label>
+                                                <input type="text" id="routePath" name="path" placeholder="/api/users"
+                                                    required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="routeStatusCode">状态码</label>
+                                                <select id="routeStatusCode" name="statusCode" required>
+                                                    <option value="200">200 OK</option>
+                                                    <option value="201">201 Created</option>
+                                                    <option value="400">400 Bad Request</option>
+                                                    <option value="404">404 Not Found</option>
+                                                    <option value="500">500 Internal Server Error</option>
+                                                    <option value="503">503 Service Unavailable</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="routeDescription">路由描述</label>
+                                            <input type="text" id="routeDescription" name="routeDescription"
+                                                placeholder="路由描述...">
+                                        </div>
+
+                                        <!-- 默认配置选项 -->
+                                        <div class="form-group">
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" id="setAsDefault">
+                                                设置为默认返回
+                                            </label>
+                                            <div class="help-text">
+                                                注意：相同端口和API路径只能有一个配置设为默认
+                                            </div>
+                                        </div>
+
+                                        <!-- 响应头配置 -->
+                                        <div class="headers-config">
+                                            <h4>响应头配置</h4>
+                                            <div id="headersList" class="key-value-list">
+                                                <div class="key-value-item">
+                                                    <input type="text" class="header-key" placeholder="Header Key"
+                                                        value="Content-Type">
+                                                    <input type="text" class="header-value" placeholder="Header Value"
+                                                        value="application/json">
+                                                    <button type="button"
+                                                        class="btn btn-danger remove-header">删除</button>
+                                                </div>
+                                            </div>
+                                            <button type="button" id="addHeader"
+                                                class="btn btn-secondary">添加响应头</button>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">启动模拟服务器</button>
+                                    <button type="button" id="stopMockServer" class="btn btn-danger"
+                                        disabled>停止模拟服务器</button>
+                                    <button type="button" id="saveMockConfig" class="btn btn-success"
+                                        disabled>保存配置</button>
+                                </div>
+
+                                <!-- 配置管理 -->
+                                <div class="config-management">
+                                    <h3>配置管理</h3>
+                                    <div class="config-list-container">
+                                        <div id="mockConfigList" class="config-list"></div>
+                                        <div class="config-actions">
+                                            <button id="newMockConfig" class="btn btn-primary">新建配置</button>
+                                            <button id="openConfigLocation" class="btn btn-secondary">打开文件保存位置</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 代理服务器配置 -->
+                        <div class="tab-pane" id="proxy-tab">
+                            <form id="proxyServerForm" class="server-form">
                                 <div class="form-group">
-                                    <label for="routeDescription">路由描述</label>
-                                    <input type="text" id="routeDescription" name="routeDescription"
-                                        placeholder="路由描述...">
+                                    <label for="proxyName">服务器名称</label>
+                                    <input type="text" id="proxyName" name="name" required>
                                 </div>
-
-                                <!-- 响应头配置 -->
-                                <div class="headers-config">
-                                    <h4>响应头配置</h4>
-                                    <div id="headersList" class="key-value-list">
-                                        <div class="key-value-item">
-                                            <input type="text" class="header-key" placeholder="Header Key"
-                                                value="Content-Type">
-                                            <input type="text" class="header-value" placeholder="Header Value"
-                                                value="application/json">
-                                            <button type="button" class="btn btn-danger remove-header">删除</button>
-                                        </div>
-                                    </div>
-                                    <button type="button" id="addHeader" class="btn btn-secondary">添加响应头</button>
+                                <div class="form-group">
+                                    <label for="proxyPort">端口号</label>
+                                    <input type="number" id="proxyPort" name="port" min="1" max="65535" required>
                                 </div>
-
-                                <!-- JSON Body 编辑器 -->
-                                <div class="json-editor">
-                                    <h4>响应 Body (JSON)</h4>
-                                    <div id="jsonFields" class="key-value-list">
-                                        <div class="key-value-item">
-                                            <input type="text" class="json-key" placeholder="Key" value="message">
-                                            <select class="json-type">
-                                                <option value="string">字符串</option>
-                                                <option value="number">数字</option>
-                                                <option value="boolean">布尔值</option>
-                                                <option value="object">对象</option>
-                                                <option value="array">数组</option>
-                                            </select>
-                                            <input type="text" class="json-value" placeholder="Value"
-                                                value="Hello World">
-                                            <button type="button" class="btn btn-danger remove-json-field">删除</button>
-                                        </div>
-                                    </div>
-                                    <button type="button" id="addJsonField" class="btn btn-secondary">添加字段</button>
+                                <div class="form-group">
+                                    <label for="proxyProtocol">协议</label>
+                                    <select id="proxyProtocol" name="protocol" required>
+                                        <option value="http">HTTP</option>
+                                        <option value="https">HTTPS</option>
+                                    </select>
                                 </div>
-                            </div>
+                                <div class="form-group">
+                                    <label for="proxyTarget">目标地址</label>
+                                    <input type="url" id="proxyTarget" name="target" placeholder="http://example.com"
+                                        required>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">启动代理服务器</button>
+                                    <button type="button" id="stopProxyServer" class="btn btn-danger"
+                                        disabled>停止代理服务器</button>
+                                </div>
+                            </form>
                         </div>
-
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">启动模拟服务器</button>
-                            <button type="button" id="stopMockServer" class="btn btn-danger" disabled>停止模拟服务器</button>
-                        </div>
-                    </form>
-                </section>
-
-                <!-- 代理服务器配置 -->
-                <section class="server-config">
-                    <h2>代理服务器配置</h2>
-                    <form id="proxyServerForm" class="server-form">
-                        <div class="form-group">
-                            <label for="proxyName">服务器名称</label>
-                            <input type="text" id="proxyName" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="proxyPort">端口号</label>
-                            <input type="number" id="proxyPort" name="port" min="1" max="65535" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="proxyProtocol">协议</label>
-                            <select id="proxyProtocol" name="protocol" required>
-                                <option value="http">HTTP</option>
-                                <option value="https">HTTPS</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="proxyTarget">目标地址</label>
-                            <input type="url" id="proxyTarget" name="target" placeholder="http://example.com" required>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">启动代理服务器</button>
-                            <button type="button" id="stopProxyServer" class="btn btn-danger" disabled>停止代理服务器</button>
-                        </div>
-                    </form>
-                </section>
+                    </div>
+                </div>
             </div>
 
             <!-- 日志面板 -->

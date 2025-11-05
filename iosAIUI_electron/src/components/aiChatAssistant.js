@@ -14,6 +14,15 @@ class AIChatAssistant {
             maxTokens: 1000
         };
 
+        // DeepSeek配置
+        this.deepSeekConfig = {
+            url: 'https://api.deepseek.com/v1',
+            apiKey: '',
+            model: '',
+            models: []
+        };
+        this.isConnected = false;
+
         // 初始化组件
         this.init();
     }
@@ -25,11 +34,17 @@ class AIChatAssistant {
         // 创建聊天界面结构
         this.createChatInterface();
 
-        // 绑定事件监听器
-        this.bindEvents();
+        // 确保在DOM完全加载后绑定事件
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            this.bindDialogEvents();
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.bindDialogEvents();
+            });
+        }
 
         // 加载配置
-        this.loadConfig();
+        this.loadDeepSeekConfig();
 
         // 订阅状态变化
         stateManager.subscribe((state) => {
@@ -40,6 +55,13 @@ class AIChatAssistant {
         this.addSystemMessage('欢迎使用AI聊天助手！我可以帮助您优化UI层级结构、提供设计建议和执行修改命令。');
 
         console.log('🤖 AI聊天助手初始化完成');
+    }
+
+    /**
+     * 绑定对话框事件
+     */
+    bindDialogEvents() {
+        // AI命令确认对话框已删除，不再需要绑定相关事件
     }
 
     /**
@@ -88,7 +110,7 @@ class AIChatAssistant {
         const configButton = document.createElement('button');
         configButton.className = 'btn-secondary';
         configButton.textContent = '配置';
-        configButton.addEventListener('click', () => this.showConfigDialog());
+        configButton.addEventListener('click', () => this.showDeepSeekConfigDialog());
 
         // 组装界面
         buttonContainer.appendChild(this.sendButton);
@@ -112,114 +134,26 @@ class AIChatAssistant {
     }
 
     /**
-     * 绑定事件监听器
+     * 加载DeepSeek配置
      */
-    bindEvents() {
-        // 绑定AI模型选择器
-        const aiModelSelect = document.getElementById('ai-model');
-        if (aiModelSelect) {
-            aiModelSelect.addEventListener('change', (e) => {
-                this.aiConfig.model = e.target.value;
-                this.saveConfig();
-            });
-        }
-
-        // 绑定API Key输入
-        const apiKeyInput = document.getElementById('ai-api-key');
-        if (apiKeyInput) {
-            apiKeyInput.addEventListener('change', (e) => {
-                this.aiConfig.apiKey = e.target.value;
-                this.saveConfig();
-            });
-        }
-
-        // 绑定预设命令按钮
-        this.bindPresetCommands();
-    }
-
-    /**
-     * 绑定预设命令按钮
-     */
-    bindPresetCommands() {
-        const presetCommands = [
-            {
-                id: 'optimize-layout',
-                text: '优化布局结构',
-                command: '请分析当前的UI层级结构并提供优化建议'
-            },
-            {
-                id: 'suggest-components',
-                text: '推荐组件',
-                command: '根据当前设计，推荐适合的UI组件'
-            },
-            {
-                id: 'check-constraints',
-                text: '检查约束',
-                command: '检查当前的约束配置是否合理'
-            },
-            {
-                id: 'generate-template',
-                text: '生成模板',
-                command: '为常见的UI场景生成布局模板'
-            }
-        ];
-
-        presetCommands.forEach(preset => {
-            const button = document.getElementById(`ai-${preset.id}`);
-            if (button) {
-                button.addEventListener('click', () => {
-                    this.messageInput.value = preset.command;
-                    this.sendMessage();
-                });
-            }
-        });
-    }
-
-    /**
-     * 加载配置
-     */
-    loadConfig() {
+    loadDeepSeekConfig() {
         try {
-            const savedConfig = localStorage.getItem('ai-chat-config');
+            const savedConfig = localStorage.getItem('deepseek-config');
             if (savedConfig) {
-                this.aiConfig = { ...this.aiConfig, ...JSON.parse(savedConfig) };
+                const config = JSON.parse(savedConfig);
+                this.deepSeekConfig = {
+                    ...this.deepSeekConfig,
+                    url: config.url || this.deepSeekConfig.url,
+                    apiKey: config.apiKey || '',
+                    model: config.model || '',
+                    models: config.models || []
+                };
+                this.isConnected = !!this.deepSeekConfig.apiKey && !!this.deepSeekConfig.model;
             }
-
-            // 更新UI中的配置值
-            const aiModelSelect = document.getElementById('ai-model');
-            if (aiModelSelect) {
-                aiModelSelect.value = this.aiConfig.model;
-            }
-
-            const apiKeyInput = document.getElementById('ai-api-key');
-            if (apiKeyInput) {
-                apiKeyInput.value = this.aiConfig.apiKey;
-            }
-
-            this.isConnected = !!this.aiConfig.apiKey;
         } catch (error) {
-            console.warn('加载AI配置失败:', error);
+            console.warn('配置加载失败，清除错误配置', error);
+            localStorage.removeItem('deepseek-config');
         }
-    }
-
-    /**
-     * 保存配置
-     */
-    saveConfig() {
-        try {
-            localStorage.setItem('ai-chat-config', JSON.stringify(this.aiConfig));
-            this.isConnected = !!this.aiConfig.apiKey;
-        } catch (error) {
-            console.error('保存AI配置失败:', error);
-        }
-    }
-
-    /**
-     * 更新上下文
-     * @param {Object} state - 应用状态
-     */
-    updateContext(state) {
-        this.currentState = state;
     }
 
     /**
@@ -281,21 +215,49 @@ class AIChatAssistant {
     }
 
     /**
-     * 发送到AI服务（模拟实现）
+     * 发送到AI服务
      * @param {string} message - 用户消息
      * @param {Object} context - 上下文数据
      * @returns {Promise<Object>} AI响应
      */
     async sendToAIService(message, context) {
-        // 在实际应用中，这里应该通过Electron主进程调用真实的AI服务
-        // 这里使用模拟响应来演示功能
+        // 检查连接状态
+        if (!this.isConnected) {
+            throw new Error('请先配置AI API Key以使用聊天功能。');
+        }
 
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const response = this.generateMockResponse(message, context);
-                resolve(response);
-            }, 1000 + Math.random() * 2000); // 模拟网络延迟
-        });
+        try {
+            // 通过Electron主进程调用DeepSeek API
+            // 清理API密钥，确保只包含ASCII字符
+            const cleanApiKey = this.deepSeekConfig.apiKey.replace(/[^\x00-\x7F]/g, '');
+
+            // 验证清理后的API密钥
+            if (!cleanApiKey) {
+                throw new Error('API密钥无效：必须包含ASCII字符');
+            }
+
+            const response = await window.electronAPI.deepseekChat({
+                url: this.deepSeekConfig.url,
+                apiKey: cleanApiKey,
+                model: this.deepSeekConfig.model,
+                message: message,
+                context: context
+            });
+
+            if (!response.success) {
+                throw new Error(response.error || 'AI服务返回错误');
+            }
+
+            // 解析AI响应
+            return {
+                content: response.response,
+                type: 'suggestion',
+                actions: ['apply_commands']
+            };
+        } catch (error) {
+            console.error('AI服务调用失败:', error);
+            throw error;
+        }
     }
 
     /**
@@ -369,16 +331,162 @@ class AIChatAssistant {
      * @param {Object} response - AI响应
      */
     async handleAIResponse(response) {
-        // 添加AI消息
-        this.addAIMessage(response.content);
-
-        // 处理响应中的操作
-        if (response.actions && response.actions.length > 0) {
-            this.showActionButtons(response.actions);
+        // 尝试解析为命令
+        let commands = null;
+        try {
+            // 尝试解析整个响应内容
+            commands = JSON.parse(response.content);
+            // 如果解析成功，可能是单个命令或命令数组
+            if (!Array.isArray(commands)) {
+                commands = [commands];
+            }
+        } catch (e) {
+            // 解析失败，作为普通消息
+            this.addAIMessage(response.content);
         }
 
-        // 检查是否需要执行命令
-        await this.executeAICommands(response);
+        if (commands) {
+            // 显示命令确认界面
+            this.showCommandConfirmation(commands);
+        } else {
+            // 处理响应中的操作
+            if (response.actions && response.actions.length > 0) {
+                this.showActionButtons(response.actions);
+            }
+        }
+    }
+
+    /**
+     * 显示命令确认界面
+     * @param {Array} commands - 命令列表
+     */
+    showCommandConfirmation(commands) {
+        // AI命令确认对话框已删除，直接执行命令
+        console.log('🤖 AI返回的命令:', commands);
+        this.executeCommands(commands);
+    }
+
+    /**
+     * 格式化命令描述
+     * @param {Object} command - 命令对象
+     * @returns {string} 格式化后的描述
+     */
+    formatCommandDescription(command) {
+        switch (command.action) {
+            case 'add':
+                return `添加节点: ${command.node.type} (${command.node.id})`;
+            case 'delete':
+                return `删除节点: ${command.nodeId}`;
+            case 'update':
+                return `更新节点: ${command.nodeId} (${Object.keys(command.updates).join(', ')})`;
+            case 'move':
+                return `移动节点: ${command.nodeId} 到 ${command.newParentId}`;
+            default:
+                return JSON.stringify(command);
+        }
+    }
+
+    /**
+     * 执行多个命令
+     * @param {Array} commands - 命令列表
+     */
+    async executeCommands(commands) {
+        for (const command of commands) {
+            try {
+                await this.executeCommand(command);
+                // 记录成功执行
+                this.addSystemMessage(`✅ 执行成功: ${this.formatCommandDescription(command)}`);
+            } catch (error) {
+                this.addSystemMessage(`❌ 执行失败: ${error.message}`);
+                // 如果一个命令失败，停止后续命令
+                break;
+            }
+        }
+    }
+
+    /**
+     * 执行单个命令
+     * @param {Object} command - 命令对象
+     */
+    async executeCommand(command) {
+        switch (command.action) {
+            case 'add':
+                await this.executeAddCommand(command);
+                break;
+            case 'delete':
+                await this.executeDeleteCommand(command);
+                break;
+            case 'update':
+                await this.executeUpdateCommand(command);
+                break;
+            case 'move':
+                await this.executeMoveCommand(command);
+                break;
+            default:
+                throw new Error(`未知命令类型: ${command.action}`);
+        }
+    }
+
+    /**
+     * 执行添加节点命令
+     * @param {Object} command - 命令对象
+     */
+    async executeAddCommand(command) {
+        const { node, parentId } = command;
+        if (!node) {
+            throw new Error('缺少节点数据');
+        }
+
+        // 如果没有指定父节点，使用当前选中节点
+        const parent = parentId || stateManager.getState().selectedNode?.id || stateManager.getRootNodeId();
+        if (!parent) {
+            throw new Error('找不到父节点');
+        }
+
+        // 添加节点
+        stateManager.addNode(node, parent);
+    }
+
+    /**
+     * 执行删除节点命令
+     * @param {Object} command - 命令对象
+     */
+    async executeDeleteCommand(command) {
+        const { nodeId } = command;
+        if (!nodeId) {
+            throw new Error('缺少节点ID');
+        }
+
+        // 删除节点
+        stateManager.deleteNode(nodeId);
+    }
+
+    /**
+     * 执行更新节点命令
+     * @param {Object} command - 命令对象
+     */
+    async executeUpdateCommand(command) {
+        const { nodeId, updates } = command;
+        if (!nodeId || !updates) {
+            throw new Error('缺少节点ID或更新数据');
+        }
+
+        // 更新节点
+        stateManager.updateNode(nodeId, updates);
+    }
+
+    /**
+     * 执行移动节点命令
+     * @param {Object} command - 命令对象
+     */
+    async executeMoveCommand(command) {
+        const { nodeId, newParentId } = command;
+        if (!nodeId || !newParentId) {
+            throw new Error('缺少节点ID或新父节点ID');
+        }
+
+        // 移动节点
+        stateManager.moveNode(nodeId, newParentId);
     }
 
     /**
@@ -627,13 +735,393 @@ class AIChatAssistant {
      * 显示配置对话框
      */
     showConfigDialog() {
-        // 简化的配置对话框
-        const apiKey = prompt('请输入AI API Key:', this.aiConfig.apiKey);
-        if (apiKey !== null) {
-            this.aiConfig.apiKey = apiKey;
+        // 创建更完整的配置对话框
+        const configDialog = document.createElement('div');
+        configDialog.className = 'ai-config-dialog';
+        configDialog.innerHTML = `
+            <div class="config-header">
+                <h3>AI配置</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="config-body">
+                <div class="config-section">
+                    <h4>通用配置</h4>
+                    <div class="config-field">
+                        <label for="ai-api-key">API Key:</label>
+                        <input type="password" id="ai-api-key" placeholder="输入AI API Key" value="${this.aiConfig.apiKey}">
+                    </div>
+                    <div class="config-field">
+                        <label for="ai-model">模型:</label>
+                        <input type="text" id="ai-model" placeholder="模型名称" value="${this.aiConfig.model}">
+                    </div>
+                </div>
+                <div class="config-actions">
+                    <button id="save-ai-config" class="btn-primary">保存配置</button>
+                    <button id="deepseek-config" class="btn-secondary">DeepSeek配置</button>
+                </div>
+            </div>
+        `;
+
+        // 添加到DOM并绑定事件
+        document.body.appendChild(configDialog);
+
+        // 绑定事件
+        document.querySelector('.close-btn').addEventListener('click', () => configDialog.remove());
+        document.getElementById('save-ai-config').addEventListener('click', () => {
+            this.aiConfig.apiKey = document.getElementById('ai-api-key').value;
+            this.aiConfig.model = document.getElementById('ai-model').value;
             this.saveConfig();
             this.addSystemMessage('AI配置已更新');
+            configDialog.remove();
+        });
+        document.getElementById('deepseek-config').addEventListener('click', () => {
+            configDialog.remove();
+            this.showDeepSeekConfigDialog();
+        });
+    }
+
+    /**
+     * 显示DeepSeek配置对话框
+     */
+    showDeepSeekConfigDialog() {
+        const configDialog = document.createElement('div');
+        configDialog.className = 'ai-config-dialog deepseek-config';
+        configDialog.innerHTML = `
+            <div class="config-header">
+                <h3>DeepSeek配置</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="config-body">
+                <div class="config-field">
+                    <label for="deepseek-url">服务地址:</label>
+                    <input type="url" id="deepseek-url" placeholder="https://api.deepseek.com/v1" 
+                           value="${this.deepSeekConfig.url || ''}">
+                </div>
+                <div class="config-field">
+                    <label for="deepseek-api-key">API Key:</label>
+                    <input type="password" id="deepseek-api-key" placeholder="输入DeepSeek API Key"
+                           value="${this.deepSeekConfig.apiKey || ''}">
+                </div>
+                <div class="config-field">
+                    <label for="deepseek-model">模型:</label>
+                    <select id="deepseek-model">
+                        <option value="">请选择模型</option>
+                        ${this.deepSeekConfig.models?.map(model =>
+            `<option value="${model.id}" ${model.id === this.deepSeekConfig.model ? 'selected' : ''}>
+                                ${model.id}
+                            </option>`
+        ).join('') || ''}
+                    </select>
+                    <button id="refresh-models" class="btn-secondary">刷新模型列表</button>
+                    <div id="model-status" class="status-message"></div>
+                </div>
+                <div class="config-actions">
+                    <button id="test-connection" class="btn-secondary">测试连接</button>
+                    <button id="save-deepseek-config" class="btn-primary">保存配置</button>
+                </div>
+            </div>
+        `;
+
+        // 添加到DOM并绑定事件
+        document.body.appendChild(configDialog);
+
+        // 绑定事件
+        document.querySelector('.close-btn').addEventListener('click', () => configDialog.remove());
+        document.getElementById('refresh-models').addEventListener('click', () => this.refreshDeepSeekModels());
+        document.getElementById('test-connection').addEventListener('click', () => this.testDeepSeekConnection());
+        document.getElementById('save-deepseek-config').addEventListener('click', () => this.saveDeepSeekConfig());
+
+        // 自动尝试获取模型列表（如果已有配置）
+        this.autoRefreshModels();
+    }
+
+    /**
+     * 自动刷新模型列表
+     */
+    async autoRefreshModels() {
+        const url = document.getElementById('deepseek-url').value;
+        const apiKey = document.getElementById('deepseek-api-key').value;
+
+        if (url && apiKey && (!this.deepSeekConfig.models || this.deepSeekConfig.models.length === 0)) {
+            try {
+                this.setModelStatus('正在自动获取模型列表...', 'loading');
+                const models = await this.fetchDeepSeekModels(url, apiKey);
+                this.updateModelSelect(models);
+                this.setModelStatus(`已加载 ${models.length} 个模型`, 'success');
+            } catch (error) {
+                this.setModelStatus(`自动获取失败: ${error.message}`, 'error');
+            }
         }
+    }
+
+    /**
+     * 设置模型状态消息
+     * @param {string} message - 状态消息
+     * @param {string} type - 消息类型 (loading|success|error)
+     */
+    setModelStatus(message, type = 'info') {
+        const statusElement = document.getElementById('model-status');
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `status-message status-${type}`;
+        }
+    }
+
+    /**
+     * 刷新DeepSeek模型列表
+     */
+    async refreshDeepSeekModels() {
+        const url = document.getElementById('deepseek-url').value;
+        const apiKey = document.getElementById('deepseek-api-key').value;
+
+        if (!url || !apiKey) {
+            alert('请先填写服务地址和API Key');
+            return;
+        }
+
+        try {
+            this.setLoadingState(true);
+            const models = await this.fetchDeepSeekModels(url, apiKey);
+            this.updateModelSelect(models);
+            this.setLoadingState(false);
+        } catch (error) {
+            this.setLoadingState(false);
+            alert(`获取模型列表失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 获取DeepSeek模型列表
+     */
+    async fetchDeepSeekModels(url, apiKey) {
+        try {
+            // 1. 首先尝试通过Electron主进程调用DeepSeek API
+            if (window.electronAPI && window.electronAPI.invoke) {
+                const response = await window.electronAPI.invoke('deepseek-models', { url, apiKey });
+
+                if (response && response.success) {
+                    return response.models;
+                } else {
+                    throw new Error(response?.error || '获取模型列表失败');
+                }
+            } else {
+                // 2. 如果Electron API不可用，尝试使用浏览器fetch
+                return await this.fetchDeepSeekModelsViaBrowser(url, apiKey);
+            }
+        } catch (error) {
+            console.error('获取DeepSeek模型失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 通过浏览器fetch获取DeepSeek模型列表
+     */
+    async fetchDeepSeekModelsViaBrowser(url, apiKey) {
+        try {
+            // 清理API密钥，确保只包含ASCII字符
+            const cleanApiKey = apiKey.replace(/[^\x00-\x7F]/g, '');
+
+            // 验证清理后的API密钥
+            if (!cleanApiKey) {
+                throw new Error('API密钥无效：必须包含ASCII字符');
+            }
+
+            // 开发模式下使用模拟数据
+            if (this.isDevelopmentMode()) {
+                this.setModelStatus('开发模式：使用模拟数据', 'info');
+                return [
+                    { id: 'deepseek-chat', name: 'deepseek-chat' },
+                    { id: 'deepseek-coder', name: 'deepseek-coder' }
+                ];
+            }
+
+            this.setModelStatus('正在通过浏览器获取模型列表...', 'loading');
+            this.setModelStatus('注意：浏览器模式可能受CORS限制', 'info');
+
+            const response = await fetch(`${url}/models`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${cleanApiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `HTTP错误! 状态: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.data || [];
+        } catch (error) {
+            console.error('通过浏览器获取模型列表失败:', error);
+
+            // 如果是CORS错误，提供更友好的提示
+            if (error.message.includes('CORS')) {
+                throw new Error('无法获取模型列表：浏览器CORS限制。请使用Electron应用或配置代理服务器');
+            }
+
+            throw new Error(`无法获取模型列表: ${error.message}`);
+        }
+    }
+
+    /**
+     * 检查是否为开发模式
+     */
+    isDevelopmentMode() {
+        const hostname = window.location.hostname;
+        return hostname === 'localhost' ||
+            hostname === '127.0.0.1' ||
+            hostname === '[::1]' ||  // IPv6 localhost
+            hostname.endsWith('.local');  // 常见的开发环境域名
+    }
+
+    /**
+     * 更新模型选择器
+     */
+    updateModelSelect(models) {
+        const modelSelect = document.getElementById('deepseek-model');
+        if (!modelSelect) return;
+
+        // 保存模型列表
+        this.deepSeekConfig.models = models;
+
+        // 更新选择器选项
+        modelSelect.innerHTML = '<option value="">请选择模型</option>' +
+            models.map(model =>
+                `<option value="${model.id}">${model.id}</option>`
+            ).join('');
+    }
+
+    /**
+     * 测试DeepSeek连接
+     */
+    async testDeepSeekConnection() {
+        const url = document.getElementById('deepseek-url').value;
+        const apiKey = document.getElementById('deepseek-api-key').value;
+
+        if (!url || !apiKey) {
+            alert('请先填写服务地址和API Key');
+            return;
+        }
+
+        try {
+            this.setLoadingState(true);
+            const result = await this.testDeepSeekAPI(url, apiKey);
+            this.setLoadingState(false);
+            alert(`连接测试成功！\n服务状态: ${result.status}\n模型数量: ${result.modelCount}`);
+        } catch (error) {
+            this.setLoadingState(false);
+            alert(`连接测试失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 测试DeepSeek API连接
+     */
+    async testDeepSeekAPI(url, apiKey) {
+        try {
+            // 1. 首先尝试通过Electron主进程测试连接
+            if (window.electronAPI && window.electronAPI.invoke) {
+                const response = await window.electronAPI.invoke('deepseek-test', { url, apiKey });
+
+                if (response && response.success) {
+                    return response.data;
+                } else {
+                    throw new Error(response?.error || '连接测试失败');
+                }
+            } else {
+                // 2. 如果Electron API不可用，尝试使用浏览器fetch
+                return await this.testDeepSeekConnectionViaBrowser(url, apiKey);
+            }
+        } catch (error) {
+            console.error('测试DeepSeek连接失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 通过浏览器fetch测试DeepSeek连接
+     */
+    async testDeepSeekConnectionViaBrowser(url, apiKey) {
+        try {
+            // 开发模式下使用模拟数据
+            if (this.isDevelopmentMode()) {
+                this.setModelStatus('开发模式：使用模拟数据', 'info');
+                return {
+                    status: 'connected',
+                    modelCount: 2
+                };
+            }
+
+            this.setModelStatus('正在测试连接...', 'loading');
+            this.setModelStatus('注意：浏览器模式可能受CORS限制', 'info');
+
+            const response = await fetch(`${url}/models`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    status: 'connected',
+                    modelCount: data.data?.length || 0
+                };
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `HTTP错误! 状态: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('通过浏览器测试连接失败:', error);
+
+            // 如果是CORS错误，提供更友好的提示
+            if (error.message.includes('CORS')) {
+                throw new Error('连接测试失败：浏览器CORS限制。请使用Electron应用或配置代理服务器');
+            }
+
+            throw new Error(`连接测试失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 保存DeepSeek配置
+     */
+    saveDeepSeekConfig() {
+        const config = {
+            url: document.getElementById('deepseek-url').value,
+            apiKey: document.getElementById('deepseek-api-key').value,
+            model: document.getElementById('deepseek-model').value,
+            // 仅保存必要字段
+            models: (this.deepSeekConfig.models || []).map(m => ({ id: m.id, name: m.name }))
+        };
+
+        try {
+            localStorage.setItem('deepseek-config', JSON.stringify(config));
+            this.deepSeekConfig = config;
+            this.isConnected = !!config.apiKey && !!config.model;
+            alert('DeepSeek配置已保存');
+        } catch (e) {
+            console.error('配置保存失败', e);
+            alert('配置保存失败: ' + e.message);
+        }
+        document.querySelector('.deepseek-config').remove();
+    }
+
+    /**
+     * 设置加载状态
+     */
+    setLoadingState(loading) {
+        const buttons = document.querySelectorAll('.deepseek-config button');
+        buttons.forEach(button => {
+            button.disabled = loading;
+        });
     }
 
     /**
@@ -701,6 +1189,15 @@ class AIChatAssistant {
         } catch (error) {
             this.addSystemMessage(`导出聊天记录失败: ${error.message}`);
         }
+    }
+
+    /**
+     * 更新上下文状态
+     * @param {Object} state - 最新状态
+     */
+    updateContext(state) {
+        this.currentState = state;
+        console.log('🔄 AI聊天助手上下文已更新', state);
     }
 
     /**

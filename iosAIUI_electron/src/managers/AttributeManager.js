@@ -145,6 +145,9 @@ class AttributeManager {
             case 'stateGroup':
                 this.createStateGroupInput(key, value, container, attributeDef);
                 break;
+            case 'cornerMask':
+                this.createCornerMaskInput(key, value, container);
+                break;
             case 'text':
             default:
                 this.createTextInput(key, value, container);
@@ -176,9 +179,30 @@ class AttributeManager {
         colorInput.className = 'color-input';
         colorInput.placeholder = '#RRGGBB';
         colorInput.value = value || '';
+
+        // 使用防抖函数处理输入事件，避免频繁触发状态更新
+        let debounceTimer;
         colorInput.addEventListener('input', (e) => {
             const newValue = e.target.value;
+
+            // 实时更新预览颜色
             colorPreview.style.backgroundColor = newValue;
+
+            // 清除之前的定时器
+            clearTimeout(debounceTimer);
+
+            // 设置新的定时器，延迟更新属性值
+            debounceTimer = setTimeout(() => {
+                this.updateAttributeValue(key, newValue);
+            }, 300); // 300ms 延迟
+        });
+
+        // 添加失焦事件作为备用更新机制
+        colorInput.addEventListener('blur', (e) => {
+            const newValue = e.target.value;
+            // 清除防抖定时器
+            clearTimeout(debounceTimer);
+            // 立即更新属性值
             this.updateAttributeValue(key, newValue);
         });
 
@@ -291,6 +315,79 @@ class AttributeManager {
             this.updateAttributeValue(key, e.target.value);
         });
         container.appendChild(textInput);
+    }
+
+    /**
+     * 创建圆角位置输入控件
+     * @param {string} key - 属性键
+     * @param {*} value - 属性值
+     * @param {HTMLElement} container - 容器元素
+     */
+    createCornerMaskInput(key, value, container) {
+        const cornerMaskGroup = document.createElement('div');
+        cornerMaskGroup.className = 'corner-mask-input-group';
+
+        // 四个角的复选框组
+        const cornersContainer = document.createElement('div');
+        cornersContainer.className = 'corners-container';
+
+        // 定义四个角及其标签
+        const corners = [
+            { key: 'top-left', label: '左上角' },
+            { key: 'top-right', label: '右上角' },
+            { key: 'bottom-left', label: '左下角' },
+            { key: 'bottom-right', label: '右下角' }
+        ];
+
+        // 解析当前值
+        const currentCorners = value ? value.split(',') : [];
+
+        // 创建每个角的复选框
+        corners.forEach(corner => {
+            const cornerItem = document.createElement('div');
+            cornerItem.className = 'corner-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `corner-${corner.key}`;
+            checkbox.value = corner.key;
+            checkbox.checked = currentCorners.includes(corner.key);
+            checkbox.addEventListener('change', () => {
+                this.updateCornerMaskValue(key, cornersContainer);
+            });
+
+            const label = document.createElement('label');
+            label.htmlFor = `corner-${corner.key}`;
+            label.textContent = corner.label;
+            label.className = 'corner-label';
+
+            cornerItem.appendChild(checkbox);
+            cornerItem.appendChild(label);
+            cornersContainer.appendChild(cornerItem);
+        });
+
+        cornerMaskGroup.appendChild(cornersContainer);
+        container.appendChild(cornerMaskGroup);
+    }
+
+    /**
+     * 更新圆角位置值
+     * @param {string} key - 属性键
+     * @param {HTMLElement} container - 容器元素
+     */
+    updateCornerMaskValue(key, container) {
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+        const selectedCorners = [];
+
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedCorners.push(checkbox.value);
+            }
+        });
+
+        // 将选中的角以逗号分隔的字符串形式存储
+        const newValue = selectedCorners.join(',');
+        this.updateAttributeValue(key, newValue);
     }
 
     /**
@@ -460,8 +557,28 @@ class AttributeManager {
                 input = document.createElement('input');
                 input.type = 'color';
                 input.value = value;
+
+                // 使用防抖函数处理颜色输入事件
+                let colorDebounceTimer;
                 input.addEventListener('input', (e) => {
-                    this.updateStateProperty(stateKey, { [propertyKey]: e.target.value });
+                    const newValue = e.target.value;
+
+                    // 清除之前的定时器
+                    clearTimeout(colorDebounceTimer);
+
+                    // 设置新的定时器，延迟更新属性值
+                    colorDebounceTimer = setTimeout(() => {
+                        this.updateStateProperty(stateKey, { [propertyKey]: newValue });
+                    }, 300); // 300ms 延迟
+                });
+
+                // 添加失焦事件作为备用更新机制
+                input.addEventListener('blur', (e) => {
+                    const newValue = e.target.value;
+                    // 清除防抖定时器
+                    clearTimeout(colorDebounceTimer);
+                    // 立即更新属性值
+                    this.updateStateProperty(stateKey, { [propertyKey]: newValue });
                 });
                 break;
             default:

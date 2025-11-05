@@ -196,6 +196,8 @@
     overflow: auto;
     padding: var(--space-4);
     background: var(--color-surface);
+    /* 确保缩放内容不会导致滚动区域计算错误 */
+    position: relative;
 }
 
 /* 左侧：树形编辑器 (35%) - 现代化设计 */
@@ -360,6 +362,7 @@
 .simulator-panel {
     width: 30%;
     min-width: 400px;
+    overflow: visible;
 }
 
 .simulator-panel .panel-header h2::before {
@@ -369,9 +372,20 @@
 .simulator-container {
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 100%;
-    padding: var(--space-4);
+    align-items: flex-start;
+    height: auto;
+    min-height: 300%;
+    padding-top: 200px;
+    padding-bottom: var(--space-4);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    /* 确保缩放后的内容能够正确计算边界 */
+    transform-origin: top center;
+    position: relative;
+    /* 确保滚动区域包含放大后的内容 */
+    overflow: visible;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .simulator-device {
@@ -410,9 +424,13 @@
 
 .simulator-content {
     width: 100%;
-    height: 100%;
-    overflow: auto;
+    height: auto;
+    overflow: visible;
     background: var(--color-surface);
+    /* 确保放大后的内容能够正确计算滚动边界 */
+    transform-origin: top center;
+    position: relative;
+    min-height: 100%;
 }
 
 .simulator-placeholder {
@@ -784,11 +802,11 @@
 
 .chat-input-container {
     display: flex;
+    flex-direction: column;
     padding: var(--space-4);
     gap: var(--space-2);
     border-top: 1px solid var(--color-border);
     background: var(--color-gray-50);
-    align-items: center;
 }
 
 .chat-input-container input {
@@ -839,6 +857,15 @@
 .chat-input-container button:active {
     transform: translateY(0);
     box-shadow: var(--shadow-sm);
+}
+
+/* 修复按钮垂直布局问题 */
+.chat-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-2);
+    width: 100%;
+    justify-content: flex-end;
 }
 
 .config-panel {
@@ -984,6 +1011,11 @@
 .log-message {
     color: var(--color-text-primary);
     margin-top: var(--space-1);
+}
+
+/* 隐藏类 */
+.hidden {
+    display: none;
 }
 
 /* 模态对话框 */
@@ -1509,4 +1541,544 @@
 
 .notification.error {
     background: var(--color-error);
+}
+
+/* AI配置对话框样式 */
+.ai-config-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.ai-config-dialog>div {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: dialogSlideIn 0.3s ease-out;
+}
+
+@keyframes dialogSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-white) 100%);
+}
+
+.config-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: var(--font-size-xl);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-base);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.close-btn:hover {
+    background: var(--color-gray-100);
+    color: var(--color-text-primary);
+}
+
+.config-body {
+    padding: var(--space-4);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.config-section {
+    margin-bottom: var(--space-4);
+}
+
+.config-section h4 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-3);
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.config-field {
+    margin-bottom: var(--space-3);
+}
+
+.config-field label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--space-1);
+    color: var(--color-text-secondary);
+}
+
+.config-field input,
+.config-field select {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+    font-family: var(--font-family-base);
+}
+
+.config-field input:focus,
+.config-field select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-light);
+    transform: translateY(-1px);
+}
+
+.config-field select {
+    cursor: pointer;
+}
+
+.config-actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: var(--space-2) var(--space-4);
+    border: none;
+    border-radius: var(--radius-base);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 80px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: var(--color-white);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary {
+    background: var(--color-gray-100);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+    background: var(--color-gray-200);
+    border-color: var(--color-gray-300);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* DeepSeek配置特定样式 */
+.deepseek-config .config-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.deepseek-config .config-field:last-child {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.deepseek-config .config-field:last-child select {
+    flex: 1;
+}
+
+.deepseek-config .config-field:last-child button {
+    flex-shrink: 0;
+}
+
+/* 模拟器动态样式 - 从simulator.js迁移 */
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+.simulator-notification {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1000;
+    animation: fadeInOut 2s ease-in-out;
+}
+
+.simulator-node-base {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+}
+
+.simulator-node-root {
+    width: 100%;
+    overflow: hidden;
+}
+
+.simulator-node-child {
+    flex: 0 0 auto;
+}
+
+.simulator-layout-vertical {
+    flex-direction: column;
+}
+
+.simulator-layout-horizontal {
+    flex-direction: row;
+}
+
+.simulator-node {
+    transition: all 0.2s ease;
+}
+
+.simulator-node:hover {
+    outline: 2px solid #007AFF;
+    outline-offset: -2px;
+}
+
+.simulator-error {
+    animation: shake 0.5s ease-in-out;
+}
+
+.simulator-children {
+    display: flex;
+    flex: 1;
+}
+
+/* 组件特定样式 */
+.simulator-node.uiview {
+    background-color: var(--background-color, #FFFFFF);
+}
+
+.simulator-node.uilabel {
+    background-color: var(--background-color, transparent);
+    color: var(--text-color, var(--color-text-primary));
+    font-size: var(--font-size, var(--font-size-base));
+}
+
+.simulator-node.uibutton {
+    background-color: var(--background-color, #007AFF);
+    color: var(--title-color, white);
+    border-radius: var(--border-radius, 8px);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size, var(--font-size-base));
+}
+
+.simulator-node.uibutton:hover {
+    background-color: var(--background-color, #0056CC);
+}
+
+.simulator-node.uitextfield {
+    background-color: var(--background-color, #FFFFFF);
+    border: var(--border-width, 1px) solid var(--border-color, #C7C7CC);
+    border-radius: var(--border-radius, 8px);
+    color: var(--text-color, var(--color-text-primary));
+    font-size: var(--font-size, var(--font-size-base));
+}
+
+.simulator-node.uiimageview {
+    border-radius: var(--border-radius, 8px);
+    background-color: var(--background-color, transparent);
+}
+
+.simulator-node.uistackview {
+    background-color: var(--background-color, transparent);
+}
+
+.simulator-node.uiscrollview {
+    background-color: var(--background-color, #FFFFFF);
+    overflow: auto;
+}
+
+/* 模拟器组件内容样式 */
+.simulator-textfield-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    background: transparent;
+}
+
+.simulator-textview-textarea {
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    background: transparent;
+    resize: none;
+}
+
+.simulator-imageview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: var(--object-fit, scaleToFill);
+    background-color: var(--background-color, transparent);
+    border-radius: inherit;
+}
+
+.simulator-imageview-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 14px;
+    background-color: var(--background-color, #FFFFFF);
+    border-radius: inherit;
+}
+
+.simulator-default-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 12px;
+    border: 1px dashed #ddd;
+    padding: 8px;
+}
+
+.simulator-label-content {
+    padding: 8px;
+    display: flex;
+}
+
+.simulator-label-left {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.simulator-label-right {
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.simulator-label-center {
+    justify-content: center;
+    align-items: center;
+}
+
+.simulator-button-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.simulator-error-content {
+    color: #FF3B30;
+    padding: 20px;
+    text-align: center;
+    background: #FFE5E5;
+    border-radius: 8px;
+    margin: 20px;
+}
+
+/* 占位符显示/隐藏样式 */
+.simulator-placeholder-visible {
+    display: flex !important;
+}
+
+.simulator-placeholder-hidden {
+    display: none !important;
+}
+
+/* 布局对齐样式 */
+.simulator-align-center {
+    justify-content: center;
+    align-items: center;
+}
+
+.simulator-align-leading {
+    justify-content: flex-start;
+}
+
+.simulator-align-trailing {
+    justify-content: flex-end;
+}
+
+.simulator-align-top {
+    align-items: flex-start;
+}
+
+.simulator-align-bottom {
+    align-items: flex-end;
+}
+
+.simulator-distribution-fill {
+    flex: 1;
+}
+
+.simulator-distribution-fillEqually {
+    flex: 1;
+}
+
+.simulator-distribution-equalSpacing {
+    justify-content: space-between;
+}
+
+/* 状态消息样式 */
+.status-message {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-1);
+    transition: all var(--transition-fast);
+    font-weight: var(--font-weight-medium);
+}
+
+.status-loading {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    border: 1px solid var(--color-warning);
+}
+
+.status-success {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+    border: 1px solid var(--color-success);
+}
+
+.status-error {
+    background: var(--color-error-light);
+    color: var(--color-error-dark);
+    border: 1px solid var(--color-error);
+}
+
+.status-info {
+    background: var(--color-info-light);
+    color: var(--color-info-dark);
+    border: 1px solid var(--color-info);
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .ai-config-dialog>div {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+    }
+
+    .config-header {
+        background: linear-gradient(135deg, var(--color-gray-100) 0%, var(--color-surface) 100%);
+    }
+
+    .btn-secondary {
+        background: var(--color-gray-200);
+        color: var(--color-text-primary);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-secondary:hover {
+        background: var(--color-gray-300);
+        border-color: var(--color-gray-500);
+    }
 }

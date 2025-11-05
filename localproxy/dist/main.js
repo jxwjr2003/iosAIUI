@@ -56,7 +56,8 @@ class LocalProxyApp {
                 nodeIntegration: false,
                 contextIsolation: true,
                 preload: path.join(__dirname, 'preload.js')
-            }
+            },
+            icon: path.join(__dirname, '../../assets/icons/app32.png')
         });
         this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
         // 开发模式下打开开发者工具
@@ -207,6 +208,20 @@ class LocalProxyApp {
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
+            }
+        });
+        // 打开配置文件位置
+        electron_1.ipcMain.handle('config:openLocation', async () => {
+            try {
+                const configPath = this.configManager.getConfigPath();
+                await electron_1.shell.showItemInFolder(configPath);
+                this.logManager.addLog('config', 'info', `Opened config location: ${configPath}`);
+                return { success: true, path: configPath };
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.logManager.addLog('config', 'error', `Failed to open config location: ${errorMessage}`);
                 return { success: false, error: errorMessage };
             }
         });

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     healthCheck: () => ipcRenderer.invoke('health-check'),
     aiTest: () => ipcRenderer.invoke('ai-test'),
     aiModels: () => ipcRenderer.invoke('ai-models'),
+    deepseekChat: (params) => ipcRenderer.invoke('deepseek-chat', params),
 
     // 文件操作 API
     openFile: () => ipcRenderer.invoke('dialog:openFile'),

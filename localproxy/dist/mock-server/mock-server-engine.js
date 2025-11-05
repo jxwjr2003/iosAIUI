@@ -67,6 +67,28 @@ class MockServerEngine extends events_1.EventEmitter {
             config: this.currentConfig
         };
     }
+    async updateRouteConfig(config) {
+        if (!this.isRunning) {
+            throw new Error('Mock server is not running');
+        }
+        this.currentConfig = config;
+        this.emit('configUpdated', config);
+    }
+    updateRoute(routeId, updatedRoute) {
+        if (!this.currentConfig) {
+            throw new Error('No configuration loaded');
+        }
+        const routeIndex = this.currentConfig.routes.findIndex(route => route.id === routeId);
+        if (routeIndex === -1) {
+            throw new Error(`Route with id ${routeId} not found`);
+        }
+        // 更新路由配置
+        this.currentConfig.routes[routeIndex] = {
+            ...this.currentConfig.routes[routeIndex],
+            ...updatedRoute
+        };
+        this.emit('routeUpdated', { routeId, updatedRoute: this.currentConfig.routes[routeIndex] });
+    }
     async handleRequest(req, res) {
         // 检查并发请求限制
         if (this.activeRequests.size >= this.maxConcurrentRequests) {
@@ -117,6 +139,9 @@ class MockServerEngine extends events_1.EventEmitter {
                     headers: { 'Content-Type': 'application/json' },
                     body: { error: 'Route not found' }
                 };
+                // 记录详细的路由匹配失败信息
+                console.error(`[Mock Server] Route not found - Method: ${request.method}, URL: ${request.url}`);
+                console.error(`[Mock Server] Available routes: ${JSON.stringify(this.getAvailableRoutes(), null, 2)}`);
                 this.emit('requestHandled', { request, response });
             }
         }
@@ -141,11 +166,24 @@ class MockServerEngine extends events_1.EventEmitter {
         if (!this.currentConfig) {
             return null;
         }
-        return this.currentConfig.routes.find(route => {
+        // 首先尝试精确匹配
+        const exactMatches = this.currentConfig.routes.filter(route => {
             const methodMatches = route.method === request.method;
             const pathMatches = route.path === request.url;
             return methodMatches && pathMatches;
-        }) || null;
+        });
+        if (exactMatches.length > 0) {
+            // 优先返回标记为默认的精确匹配，否则返回第一个精确匹配
+            return exactMatches.find(route => route.isDefault) || exactMatches[0];
+        }
+        // 如果没有精确匹配，查找默认路由
+        const defaultRoutes = this.currentConfig.routes.filter(route => route.isDefault);
+        if (defaultRoutes.length > 0) {
+            // 返回第一个默认路由
+            return defaultRoutes[0];
+        }
+        // 没有匹配的路由
+        return null;
     }
     parseHeaders(headers) {
         const result = {};
@@ -180,6 +218,16 @@ class MockServerEngine extends events_1.EventEmitter {
             });
             req.on('error', reject);
         });
+    }
+    getAvailableRoutes() {
+        if (!this.currentConfig) {
+            return [];
+        }
+        return this.currentConfig.routes.map(route => ({
+            method: route.method,
+            path: route.path,
+            description: route.description
+        }));
     }
 }
 exports.MockServerEngine = MockServerEngine;

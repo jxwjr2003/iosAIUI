@@ -594,6 +594,15 @@ class ConstraintManager {
         const siblingNodes = this.findSiblingNodes(treeData, this.currentNode.id);
         availableNodes.push(...siblingNodes);
 
+        // 如果是根节点，添加虚拟节点"00"
+        if (!parentNode) {
+            availableNodes.push({
+                id: "00",
+                name: "模拟器屏幕",
+                type: "simulator"
+            });
+        }
+
         return availableNodes;
     }
 

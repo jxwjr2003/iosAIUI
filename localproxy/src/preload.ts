@@ -21,6 +21,7 @@ const api = {
         deleteMockConfig: (id: string) => ipcRenderer.invoke('config:deleteMockConfig', id),
         load: () => ipcRenderer.invoke('config:load'),
         list: () => ipcRenderer.invoke('config:list'),
+        openLocation: () => ipcRenderer.invoke('config:openLocation'),
     },
 
     // 日志相关 API

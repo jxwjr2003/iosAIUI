@@ -20,6 +20,7 @@ const api = {
         deleteMockConfig: (id) => electron_1.ipcRenderer.invoke('config:deleteMockConfig', id),
         load: () => electron_1.ipcRenderer.invoke('config:load'),
         list: () => electron_1.ipcRenderer.invoke('config:list'),
+        openLocation: () => electron_1.ipcRenderer.invoke('config:openLocation'),
     },
     // 日志相关 API
     logs: {

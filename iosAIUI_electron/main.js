@@ -20,7 +20,9 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js')
         },
         title: 'iOS UI Editor',
-        icon: path.join(__dirname, 'assets', 'icon.png') // 可选：应用图标
+        icon: process.platform === 'darwin'
+            ? path.join(__dirname, 'assets', 'icon32.png')
+            : path.join(__dirname, 'assets', 'icon16.png')
     });
 
     // 加载应用的 index.html
@@ -135,6 +137,8 @@ ipcMain.handle('health-check', async () => {
     return { status: 'healthy', timestamp: new Date().toISOString() };
 });
 
+const axios = require('axios');
+
 ipcMain.handle('ai-test', async (event) => {
     try {
         if (!aiConfig.apiKey) {
@@ -172,6 +176,55 @@ ipcMain.handle('ai-models', async (event) => {
         };
     } catch (error) {
         return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('deepseek-chat', async (event, { url, apiKey, model, message, context }) => {
+    try {
+        const response = await axios.post(
+            `${url}/chat/completions`,
+            {
+                model: model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `你是一个 iOS UI 编辑器助手。请根据提供的 UI 层级结构 JSON 数据，帮助用户优化和修改 UI 设计。
+          
+当前选中的节点信息：
+${JSON.stringify(context.currentNode, null, 2)}
+
+可用的修改命令格式：
+- 添加节点: { "action": "add", "node": {...} }
+- 删除节点: { "action": "delete", "nodeId": "..." }
+- 修改节点: { "action": "update", "nodeId": "...", "updates": {...} }
+- 移动节点: { "action": "move", "nodeId": "...", "newParentId": "..." }
+
+请以 JSON 格式返回修改命令，确保命令格式正确且可执行。`
+                    },
+                    { role: 'user', content: message }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return {
+            success: true,
+            response: response.data.choices[0].message.content,
+            usage: response.data.usage
+        };
+    } catch (error) {
+        console.error('DeepSeek API error:', error.response?.data || error.message);
+        return {
+            success: false,
+            error: error.response?.data?.error?.message || error.message
+        };
     }
 });
 

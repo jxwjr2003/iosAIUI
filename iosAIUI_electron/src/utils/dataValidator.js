@@ -108,7 +108,7 @@ class DataValidator {
         ];
 
         // 颜色格式验证正则表达式
-        this.colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i;
+        this.colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}|[A-Fa-f0-9]{8})$|^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i;
     }
 
     /**

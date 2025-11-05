@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import { MockServerEngine } from './mock-server/mock-server-engine';
 import { ProxyServerEngine } from './proxy-server/proxy-server-engine';
@@ -29,7 +29,8 @@ class LocalProxyApp {
                 nodeIntegration: false,
                 contextIsolation: true,
                 preload: path.join(__dirname, 'preload.js')
-            }
+            },
+            icon: path.join(__dirname, '../../assets/icons/app32.png')
         });
 
         this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -191,6 +192,20 @@ class LocalProxyApp {
                 return { success: true };
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
+            }
+        });
+
+        // 打开配置文件位置
+        ipcMain.handle('config:openLocation', async () => {
+            try {
+                const configPath = this.configManager.getConfigPath();
+                await shell.showItemInFolder(configPath);
+                this.logManager.addLog('config', 'info', `Opened config location: ${configPath}`);
+                return { success: true, path: configPath };
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.logManager.addLog('config', 'error', `Failed to open config location: ${errorMessage}`);
                 return { success: false, error: errorMessage };
             }
         });
