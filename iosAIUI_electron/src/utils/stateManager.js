@@ -66,12 +66,18 @@ class StateManager {
      * @param {Array} treeData - 树形数据
      */
     setTreeData(treeData) {
-        this.setState({ treeData });
+        // 确保所有节点都有默认的展开状态
+        const normalizedTreeData = this.ensureDefaultExpansionState(treeData);
+        this.setState({ treeData: normalizedTreeData });
         // 从树数据初始化节点ID生成器，确保根节点ID正确递增
         if (window.nodeIdGenerator) {
-            window.nodeIdGenerator.initializeFromTree(treeData);
+            window.nodeIdGenerator.initializeFromTree(normalizedTreeData);
         }
-        this.addModificationLog('SET_TREE_DATA', '设置树形数据', { nodeCount: treeData.length });
+        // 刷新动态节点类型
+        if (window.dynamicNodeTypeManager) {
+            window.dynamicNodeTypeManager.refreshAvailableTypes(normalizedTreeData);
+        }
+        this.addModificationLog('SET_TREE_DATA', '设置树形数据', { nodeCount: normalizedTreeData.length });
     }
 
     /**
@@ -89,9 +95,20 @@ class StateManager {
      * @param {string} nodeId - 节点ID
      */
     deleteNode(nodeId) {
+        // 检查是否是虚拟节点
+        const nodeToDelete = this.findNode(nodeId);
+        const isVirtualNode = nodeToDelete &&
+            window.virtualNodeProcessor &&
+            window.virtualNodeProcessor.isVirtualNode(nodeToDelete);
+
+        // 递归删除函数 - 增强虚拟节点删除功能
         const deleteRecursive = (nodes) => {
             return nodes.filter(node => {
                 if (node.id === nodeId) {
+                    // 如果是虚拟节点，通知虚拟节点处理器
+                    if (isVirtualNode && window.virtualNodeProcessor) {
+                        window.virtualNodeProcessor.handleVirtualNodeDelete(nodeId);
+                    }
                     return false;
                 }
                 if (node.children && node.children.length > 0) {
@@ -109,7 +126,16 @@ class StateManager {
             this.setState({ selectedNode: null });
         }
 
-        this.addModificationLog('DELETE_NODE', `删除节点: ${nodeId}`, { nodeId });
+        // 如果删除的是根节点，清空选中的根节点状态
+        if (this.state.selectedRootNode && this.state.selectedRootNode.id === nodeId) {
+            this.setState({ selectedRootNode: null });
+        }
+
+        this.addModificationLog('DELETE_NODE', `删除节点: ${nodeId}`, {
+            nodeId,
+            isVirtualNode,
+            nodeName: nodeToDelete?.name
+        });
     }
 
     /**
@@ -142,11 +168,52 @@ class StateManager {
     }
 
     /**
+     * 更新节点展开状态
+     * @param {string} nodeId - 节点ID
+     * @param {boolean} isExpanded - 是否展开
+     */
+    updateNodeExpansion(nodeId, isExpanded) {
+        const updateRecursive = (nodes) => {
+            return nodes.map(node => {
+                if (node.id === nodeId) {
+                    return { ...node, isExpanded };
+                }
+                if (node.children && node.children.length > 0) {
+                    node.children = updateRecursive(node.children);
+                }
+                return node;
+            });
+        };
+
+        const newTreeData = updateRecursive(this.state.treeData);
+        this.setTreeData(newTreeData);
+
+        // 如果更新的是选中的节点，更新选中状态
+        if (this.state.selectedNode && this.state.selectedNode.id === nodeId) {
+            this.setState({ selectedNode: { ...this.state.selectedNode, isExpanded } });
+        }
+
+        this.addModificationLog('UPDATE_NODE_EXPANSION', `更新节点展开状态: ${nodeId}`, {
+            nodeId,
+            isExpanded
+        });
+    }
+
+    /**
      * 添加子节点
      * @param {string} parentId - 父节点ID
      * @param {Object} childNode - 子节点数据
      */
     addChildNode(parentId, childNode) {
+        console.log('🌳 [StateManager] 添加子节点:', {
+            '父节点ID': parentId,
+            '子节点ID': childNode.id,
+            '子节点类型': childNode.type,
+            '是虚拟节点': childNode.isVirtual || false,
+            '子节点数量': childNode.children?.length || 0,
+            '时间戳': new Date().toISOString()
+        });
+
         const addRecursive = (nodes) => {
             return nodes.map(node => {
                 if (node.id === parentId) {
@@ -154,6 +221,12 @@ class StateManager {
                         node.children = [];
                     }
                     node.children.push(childNode);
+                    console.log('✅ [StateManager] 子节点已添加到父节点:', {
+                        '父节点ID': node.id,
+                        '父节点名称': node.name,
+                        '添加后子节点数量': node.children.length,
+                        '时间戳': new Date().toISOString()
+                    });
                 } else if (node.children && node.children.length > 0) {
                     node.children = addRecursive(node.children);
                 }
@@ -165,7 +238,9 @@ class StateManager {
         this.setTreeData(newTreeData);
         this.addModificationLog('ADD_CHILD_NODE', `添加子节点到 ${parentId}: ${childNode.name}`, {
             parentId,
-            childNodeId: childNode.id
+            childNodeId: childNode.id,
+            isVirtualNode: childNode.isVirtual || false,
+            childCount: childNode.children?.length || 0
         });
     }
 
@@ -333,12 +408,38 @@ class StateManager {
      * @returns {Object} 状态数据
      */
     exportState() {
+        // 序列化树数据，确保虚拟节点的children为空
+        const serializeTreeData = (treeData) => {
+            return treeData.map(node => this.serializeNode(node));
+        };
+
         return {
-            treeData: this.state.treeData,
+            treeData: serializeTreeData(this.state.treeData),
             settings: this.state.settings,
             exportTime: new Date().toISOString(),
             version: '1.0.0'
         };
+    }
+
+    /**
+     * 序列化节点，处理虚拟节点的children属性
+     * @param {Object} node - 节点数据
+     * @returns {Object} 序列化后的节点
+     */
+    serializeNode(node) {
+        const serializedNode = { ...node };
+
+        // 如果是虚拟节点，确保children为空数组
+        if (virtualNodeProcessor && virtualNodeProcessor.isVirtualNode(node)) {
+            serializedNode.children = [];
+        }
+
+        // 递归处理子节点
+        if (node.children && node.children.length > 0) {
+            serializedNode.children = node.children.map(child => this.serializeNode(child));
+        }
+
+        return serializedNode;
     }
 
     /**
@@ -504,6 +605,31 @@ class StateManager {
         };
 
         return findRecursive(treeData);
+    }
+
+    /**
+     * 确保所有节点都有默认的展开状态
+     * @param {Array} treeData - 树形数据
+     * @returns {Array} 规范化后的树形数据
+     */
+    ensureDefaultExpansionState(treeData) {
+        const ensureRecursive = (nodes) => {
+            return nodes.map(node => {
+                // 如果节点没有 isExpanded 属性，设置为 true（默认展开）
+                if (node.isExpanded === undefined) {
+                    node.isExpanded = true;
+                }
+
+                // 递归处理子节点
+                if (node.children && node.children.length > 0) {
+                    node.children = ensureRecursive(node.children);
+                }
+
+                return node;
+            });
+        };
+
+        return ensureRecursive(JSON.parse(JSON.stringify(treeData)));
     }
 }
 

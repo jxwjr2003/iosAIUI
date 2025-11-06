@@ -85,7 +85,7 @@ class DataValidator {
             'UISwitch', 'UISlider', 'UIStepper', 'UISegmentedControl', 'UIActivityIndicatorView',
             'UIProgressView', 'UIPageControl', 'UIDatePicker', 'UIPickerView', 'UIVisualEffectView',
             'UINavigationBar', 'UIToolbar', 'UITabBar', 'UISearchBar', 'UIWebView', 'WKWebView',
-            'MKMapView', 'GLKView', 'SCNView', 'ARSessionView', 'AVPlayerView', 'PDFView'
+            'MKMapView', 'GLKView', 'SCNView', 'ARSessionView', 'AVPlayerView', 'UITableViewCell'
         ];
 
         // 支持的约束类型和方法 - 扩展支持SnapKit完整属性
@@ -135,7 +135,20 @@ class DataValidator {
         if (!node.type || typeof node.type !== 'string') {
             errors.push('节点类型不能为空且必须是字符串');
         } else if (!this.supportedComponentTypes.includes(node.type)) {
-            errors.push(`不支持的组件类型: ${node.type}`);
+            // 检查是否是动态节点类型
+            const isDynamicType = window.dynamicNodeTypeManager &&
+                window.dynamicNodeTypeManager.getAvailableTypes &&
+                window.dynamicNodeTypeManager.getAvailableTypes().some(t => t.name === node.type);
+            if (!isDynamicType) {
+                errors.push(`不支持的组件类型: ${node.type}`);
+            }
+        }
+
+        // 引用类型验证
+        if (node.referenceType && typeof node.referenceType !== 'string') {
+            errors.push('引用类型必须是字符串');
+        } else if (node.referenceType && node.referenceType.length > 50) {
+            errors.push('引用类型长度不能超过50个字符');
         }
 
         // 属性验证

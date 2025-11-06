@@ -4,12 +4,16 @@
  * 参考SnapKit约束模型实现
  */
 class ConstraintLayoutEngine {
-    constructor() {
+    constructor(eventManager = null) {
         this.nodeCache = new Map(); // 节点缓存
         this.layoutCache = new Map(); // 布局缓存
         this.dependencyGraph = new Map(); // 依赖关系图
         this.processedNodes = new Set(); // 已处理节点
+        this.eventManager = eventManager;
+
+        console.log('✅ [ConstraintLayoutEngine] 约束布局引擎已初始化，使用全局模拟器实例');
     }
+
     /**
      * 应用约束到节点元素 - 重构版，支持依赖分析
      * @param {Object} node - 节点数据
@@ -30,6 +34,7 @@ class ConstraintLayoutEngine {
         // 按拓扑顺序应用约束
         this.applyConstraintsInOrder(sortedNodes);
     }
+
     /**
      * 构建依赖关系图
      * @param {Object} rootNode - 根节点数据
@@ -40,6 +45,7 @@ class ConstraintLayoutEngine {
         // 递归遍历所有节点，构建依赖关系
         this.traverseNodeForDependencies(rootNode);
     }
+
     /**
      * 递归遍历节点构建依赖关系 - 重构版
      * 添加树状结构天然依赖：父节点必须优先于子节点计算
@@ -92,6 +98,7 @@ class ConstraintLayoutEngine {
             });
         }
     }
+
     /**
      * 拓扑排序 - 返回按依赖关系排序的节点ID数组
      * 重构版：从根节点"00"开始，确保自上而下的计算顺序
@@ -147,6 +154,7 @@ class ConstraintLayoutEngine {
 
         return result;
     }
+
     /**
      * 按拓扑顺序应用约束
      * @param {Array} sortedNodeIds - 排序后的节点ID数组
@@ -160,6 +168,7 @@ class ConstraintLayoutEngine {
             }
         });
     }
+
     /**
      * 应用单个节点的约束
      * @param {Object} node - 节点数据
@@ -180,6 +189,7 @@ class ConstraintLayoutEngine {
         // 应用布局
         this.applyLayout(element, layout);
     }
+
     /**
      * 计算节点布局 - 改进版，支持精确位置计算
      * @param {Object} node - 节点数据
@@ -217,6 +227,7 @@ class ConstraintLayoutEngine {
         this.validateLayout(layout, node);
         return layout;
     }
+
     /**
      * 处理尺寸约束
      * @param {Array} constraints - 尺寸约束数组
@@ -235,6 +246,7 @@ class ConstraintLayoutEngine {
             }
         });
     }
+
     /**
      * 处理固定尺寸约束
      * @param {Object} constraint - 约束数据
@@ -266,6 +278,7 @@ class ConstraintLayoutEngine {
                 break;
         }
     }
+
     /**
      * 处理参考尺寸约束
      * @param {Object} constraint - 约束数据
@@ -309,6 +322,7 @@ class ConstraintLayoutEngine {
                 break;
         }
     }
+
     /**
      * 处理边缘约束 - 改进版，支持精确位置计算
      * @param {Array} constraints - 边缘约束数组
@@ -327,6 +341,7 @@ class ConstraintLayoutEngine {
             }
         });
     }
+
     /**
      * 处理相对于父容器的边缘约束
      * @param {Object} constraint - 约束数据
@@ -359,6 +374,7 @@ class ConstraintLayoutEngine {
                 break;
         }
     }
+
     /**
      * 计算节点边界 - 精确计算节点的位置和尺寸
      * @param {Object} nodeInfo - 节点信息
@@ -493,8 +509,61 @@ class ConstraintLayoutEngine {
         });
         return bounds;
     }
+
     /**
-     * 处理参考边缘约束 - 改进版，支持精确位置计算
+     * 计算父容器边界 - 新增方法，专门处理父容器边界计算
+     * @param {Object} nodeInfo - 当前节点信息
+     * @returns {Object} 父容器边界
+     */
+    calculateParentBounds(nodeInfo) {
+        const { parentNode, parentElement } = nodeInfo;
+
+        if (parentNode) {
+            // 有父节点，计算父节点边界
+            const parentNodeInfo = this.nodeCache.get(parentNode.id);
+            if (parentNodeInfo) {
+                return this.calculateNodeBounds(parentNodeInfo);
+            }
+        } else if (parentElement) {
+            // 没有父节点但有父元素，使用父元素的实际尺寸
+            return {
+                top: 0,
+                left: 0,
+                width: parentElement.offsetWidth,
+                height: parentElement.offsetHeight,
+                right: parentElement.offsetWidth,
+                bottom: parentElement.offsetHeight
+            };
+        } else {
+            // 既没有父节点也没有父元素，使用模拟器屏幕作为父容器
+            const simulatorNode = this.nodeCache.get("00");
+            if (simulatorNode) {
+                return this.calculateNodeBounds(simulatorNode);
+            }
+        }
+
+        // 回退到默认值 - 动态获取当前设备尺寸
+        let defaultWidth = 393;
+        let defaultHeight = 852;
+        if (window.simulator && window.simulator.getCurrentDevice) {
+            const device = window.simulator.getCurrentDevice();
+            if (device && device.width && device.height) {
+                defaultWidth = device.width;
+                defaultHeight = device.height;
+                console.log('📏 [ConstraintLayoutEngine] 使用动态设备尺寸作为默认值:', {
+                    '设备名称': device.name,
+                    '设备宽度': defaultWidth,
+                    '设备高度': defaultHeight
+                });
+            }
+        } else {
+            console.warn('⚠️ [ConstraintLayoutEngine] 无法获取模拟器实例，使用默认尺寸');
+        }
+        return { top: 0, left: 0, width: defaultWidth, height: defaultHeight };
+    }
+
+    /**
+     * 处理参考边缘约束 - 改进版，支持精确位置计算和设备自适应
      * @param {Object} constraint - 约束数据
      * @param {Object} layout - 布局对象
      * @param {Object} node - 节点数据
@@ -538,15 +607,42 @@ class ConstraintLayoutEngine {
         }
         const absolutePosition = referencePosition + (value || 0);
 
-        // 获取父容器的实际边界位置
+        // 获取父容器的实际边界位置 - 修复硬编码问题
         const nodeInfo = this.nodeCache.get(node.id);
         const parentNode = nodeInfo ? nodeInfo.parentNode : null;
-        let parentBounds = { top: 0, left: 0, width: 353, height: 812 };
+        const parentElement = nodeInfo ? nodeInfo.parentElement : null;
+        let parentBounds = { top: 0, left: 0, width: 0, height: 0 };
 
         if (parentNode) {
+            // 有父节点，计算父节点边界
             const parentNodeInfo = this.nodeCache.get(parentNode.id);
             if (parentNodeInfo) {
                 parentBounds = this.calculateNodeBounds(parentNodeInfo);
+            }
+        } else if (parentElement) {
+            // 没有父节点但有父元素，使用父元素的实际尺寸
+            parentBounds = {
+                top: 0,
+                left: 0,
+                width: parentElement.offsetWidth,
+                height: parentElement.offsetHeight,
+                right: parentElement.offsetWidth,
+                bottom: parentElement.offsetHeight
+            };
+            console.log('📏 [ConstraintLayoutEngine] 使用父元素实际尺寸:', {
+                '节点ID': node.id,
+                '父元素宽度': parentElement.offsetWidth,
+                '父元素高度': parentElement.offsetHeight
+            });
+        } else {
+            // 既没有父节点也没有父元素，使用模拟器屏幕作为父容器
+            const simulatorNode = this.nodeCache.get("00");
+            if (simulatorNode) {
+                parentBounds = this.calculateNodeBounds(simulatorNode);
+            } else {
+                // 回退到默认值，但使用更合理的尺寸
+                parentBounds = { top: 0, left: 0, width: 393, height: 852 }; // iPhone 16默认尺寸
+                console.warn('⚠️ [ConstraintLayoutEngine] 无法确定父容器边界，使用默认值');
             }
         }
 
@@ -600,6 +696,7 @@ class ConstraintLayoutEngine {
             '最终设置位置': layout[attribute]
         });
     }
+
     /**
      * 计算节点尺寸
      * @param {Object} nodeInfo - 节点信息
@@ -627,6 +724,7 @@ class ConstraintLayoutEngine {
         // 默认尺寸
         return dimension === 'width' ? 100 : 50;
     }
+
     /**
      * 处理中心约束
      * @param {Array} constraints - 中心约束数组
@@ -650,6 +748,7 @@ class ConstraintLayoutEngine {
             layout.transform = 'translateY(-50%)';
         }
     }
+
     /**
      * 处理基线约束
      * @param {Array} constraints - 基线约束数组
@@ -661,6 +760,7 @@ class ConstraintLayoutEngine {
             layout.verticalAlign = 'baseline';
         }
     }
+
     /**
      * 处理宽高比约束
      * @param {Array} constraints - 宽高比约束数组
@@ -675,6 +775,7 @@ class ConstraintLayoutEngine {
             }
         });
     }
+
     /**
      * 验证布局完整性 - 改进版，避免覆盖用户设置的高度约束
      * @param {Object} layout - 布局对象
@@ -712,8 +813,26 @@ class ConstraintLayoutEngine {
                         parentWidth = 100;
                     }
                 } else {
-                    // 根节点，使用模拟器屏幕宽度
-                    parentWidth = 353;
+                    // 根节点，使用模拟器屏幕宽度 - 动态获取当前设备宽度
+                    let screenWidth = 393; // iPhone 16默认宽度减去内边距
+
+                    // 直接使用全局模拟器实例获取设备宽度
+                    if (window.simulator && window.simulator.getCurrentDevice) {
+                        const device = window.simulator.getCurrentDevice();
+                        if (device && device.width) {
+                            // 使用设备宽度减去内边距（40px）作为屏幕宽度
+                            screenWidth = device.width - 40;
+                            console.log('📏 [ConstraintLayoutEngine] 使用动态设备宽度:', {
+                                '设备名称': device.name,
+                                '设备宽度': device.width,
+                                '计算屏幕宽度': screenWidth,
+                                '节点ID': node.id
+                            });
+                        }
+                    } else {
+                        console.warn('⚠️ [ConstraintLayoutEngine] 无法获取模拟器实例，使用默认宽度');
+                    }
+                    parentWidth = screenWidth;
                 }
 
                 // 解析left和right
@@ -804,6 +923,7 @@ class ConstraintLayoutEngine {
 
         return false;
     }
+
     /**
      * 应用布局到DOM元素
      * @param {HTMLElement} element - DOM元素
@@ -825,6 +945,7 @@ class ConstraintLayoutEngine {
             }
         });
     }
+
     /**
      * 清空缓存
      */
@@ -834,6 +955,7 @@ class ConstraintLayoutEngine {
         this.dependencyGraph.clear();
         this.processedNodes.clear();
     }
+
     /**
      * 销毁引擎
      */
@@ -841,7 +963,9 @@ class ConstraintLayoutEngine {
         this.clearCache();
     }
 }
+
 // 创建全局约束布局引擎实例
-let constraintLayoutEngine = new ConstraintLayoutEngine();
+let constraintLayoutEngine = new ConstraintLayoutEngine(window.eventManager);
+
 // 导出约束布局引擎
 window.constraintLayoutEngine = constraintLayoutEngine;

@@ -102,15 +102,54 @@ class TreeEditor {
      * 递归渲染节点
      * @param {Array} nodes - 节点数组
      * @param {number} level - 当前层级
+     * @param {HTMLElement} parentContainer - 父容器元素
      */
-    renderNodes(nodes, level) {
+    renderNodes(nodes, level, parentContainer = this.treeContainer) {
         nodes.forEach((node, index) => {
+            // 创建节点元素
             const nodeElement = this.createNodeElement(node, level, index);
-            this.treeContainer.appendChild(nodeElement);
+            parentContainer.appendChild(nodeElement);
 
-            // 递归渲染子节点
-            if (node.children && node.children.length > 0) {
-                this.renderNodes(node.children, level + 1);
+            // 获取要渲染的子节点
+            let childrenToRender = node.children;
+
+            // 如果是虚拟节点，获取其完整子树用于渲染
+            if (virtualNodeProcessor && virtualNodeProcessor.isVirtualNode(node)) {
+                console.log('🔮 [TreeEditor] 处理虚拟节点:', {
+                    '虚拟节点ID': node.id,
+                    '虚拟节点名称': node.name,
+                    '原始子节点数': node.children?.length || 0,
+                    '时间戳': new Date().toISOString()
+                });
+
+                const virtualSubtree = virtualNodeProcessor.getVirtualSubtree(node);
+                if (virtualSubtree) {
+                    childrenToRender = virtualSubtree.children;
+                    console.log('✅ [TreeEditor] 获取到虚拟子树:', {
+                        '虚拟子树子节点数': childrenToRender?.length || 0,
+                        '时间戳': new Date().toISOString()
+                    });
+                } else {
+                    console.log('⚠️ [TreeEditor] 无法获取虚拟子树:', {
+                        '虚拟节点ID': node.id,
+                        '时间戳': new Date().toISOString()
+                    });
+                }
+            }
+
+            // 递归渲染子节点（只有当节点展开时才渲染）
+            if (childrenToRender && childrenToRender.length > 0 && node.isExpanded) {
+                console.log('🌳 [TreeEditor] 渲染子节点:', {
+                    '父节点ID': node.id,
+                    '子节点数量': childrenToRender.length,
+                    '时间戳': new Date().toISOString()
+                });
+                this.renderNodes(childrenToRender, level + 1, parentContainer);
+            } else {
+                console.log('ℹ️ [TreeEditor] 没有子节点需要渲染:', {
+                    '节点ID': node.id,
+                    '时间戳': new Date().toISOString()
+                });
             }
         });
     }
@@ -146,6 +185,24 @@ class TreeEditor {
         indentSpacer.className = `node-indent indent-level-${level}`;
         nodeContent.appendChild(indentSpacer);
 
+        // 展开/收缩按钮（只有有子节点的节点才显示）
+        const expandToggle = document.createElement('button');
+        expandToggle.className = 'expand-toggle';
+        expandToggle.title = '展开/收缩子节点';
+
+        // 检查是否有子节点
+        const hasChildren = node.children && node.children.length > 0;
+        if (hasChildren) {
+            expandToggle.classList.add(node.isExpanded ? 'expanded' : 'collapsed');
+            expandToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleNodeExpansion(node.id);
+            });
+        } else {
+            expandToggle.classList.add('hidden');
+        }
+        nodeContent.appendChild(expandToggle);
+
         // 节点ID
         const nodeId = document.createElement('span');
         nodeId.className = 'node-id';
@@ -178,15 +235,25 @@ class TreeEditor {
             this.showComponentTypeDialog(node.id);
         });
 
-        // 删除节点按钮
+        // 删除节点按钮 - 虚拟节点的子节点不显示删除按钮，但虚拟节点本身显示删除按钮
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'node-action-btn';
         deleteBtn.innerHTML = '×';
         deleteBtn.title = '删除节点';
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.deleteNode(node.id);
-        });
+
+        // 检查是否是虚拟节点或虚拟节点的子节点
+        const isVirtualNode = virtualNodeProcessor && virtualNodeProcessor.isVirtualNode(node);
+        const isVirtualChild = node._isVirtualChild === true;
+
+        // 虚拟节点的子节点不显示删除按钮，但虚拟节点本身显示删除按钮
+        if (isVirtualChild) {
+            deleteBtn.style.display = 'none';
+        } else {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteNode(node.id);
+            });
+        }
 
         // 复制节点按钮
         const copyBtn = document.createElement('button');
@@ -218,6 +285,10 @@ class TreeEditor {
 
         // 添加点击事件
         nodeElement.addEventListener('click', (e) => {
+            // 如果点击的是展开/收缩按钮，则不触发选择节点
+            if (e.target.classList.contains('expand-toggle')) {
+                return;
+            }
             console.log('🖱️ [TreeEditor] 节点点击事件触发:', {
                 '节点ID': node.id,
                 '节点名称': node.name,
@@ -351,8 +422,184 @@ class TreeEditor {
      * @param {string|null} parentId - 父节点ID，null表示根节点
      */
     showComponentTypeDialog(parentId) {
-        // 直接创建默认的UIView节点，不再显示对话框
-        this.createNewNode(parentId, 'UIView');
+        // 创建对话框容器
+        const dialog = document.createElement('div');
+        dialog.className = 'component-type-dialog';
+
+        // 创建标题
+        const title = document.createElement('h3');
+        title.className = 'component-type-dialog-title';
+        title.textContent = parentId ? '选择子节点类型' : '选择根节点类型';
+        dialog.appendChild(title);
+
+        // 获取所有支持的组件类型
+        const supportedTypes = getSupportedComponentTypes();
+
+        // 获取动态节点类型
+        const dynamicTypes = dynamicNodeTypeManager ? dynamicNodeTypeManager.getAvailableTypes() : [];
+
+        // 创建类型列表
+        const typeList = document.createElement('div');
+        typeList.className = 'component-type-list';
+
+        // 添加标准组件类型
+        const standardSection = document.createElement('div');
+        standardSection.className = 'component-type-section';
+
+        const standardTitle = document.createElement('h4');
+        standardTitle.className = 'component-type-section-title';
+        standardTitle.textContent = '标准组件';
+        standardSection.appendChild(standardTitle);
+
+        supportedTypes.forEach(componentType => {
+            const typeItem = this.createTypeListItem(componentType, componentType, false, parentId);
+            standardSection.appendChild(typeItem);
+        });
+        typeList.appendChild(standardSection);
+
+        // 添加动态节点类型（如果有）
+        if (dynamicTypes.length > 0) {
+            const dynamicSection = document.createElement('div');
+            dynamicSection.className = 'component-type-section';
+
+            const dynamicTitle = document.createElement('h4');
+            dynamicTitle.className = 'component-type-section-title';
+            dynamicTitle.textContent = '动态类型';
+            dynamicSection.appendChild(dynamicTitle);
+
+            dynamicTypes.forEach(dynamicType => {
+                const typeItem = this.createTypeListItem(
+                    dynamicType.name,
+                    dynamicNodeTypeManager.getTypeDisplayName(dynamicType.name),
+                    true,
+                    parentId
+                );
+                dynamicSection.appendChild(typeItem);
+            });
+            typeList.appendChild(dynamicSection);
+        }
+
+        dialog.appendChild(typeList);
+
+        // 创建取消按钮
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'component-type-cancel-btn';
+        cancelButton.textContent = '取消';
+        cancelButton.addEventListener('click', () => {
+            document.body.removeChild(dialog);
+            document.body.removeChild(overlay);
+        });
+        dialog.appendChild(cancelButton);
+
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.className = 'component-type-dialog-overlay';
+        overlay.addEventListener('click', () => {
+            document.body.removeChild(dialog);
+            document.body.removeChild(overlay);
+        });
+
+        // 添加到页面
+        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
+    }
+
+    /**
+     * 创建类型列表项
+     * @param {string} typeValue - 类型值
+     * @param {string} displayName - 显示名称
+     * @param {boolean} isDynamic - 是否是动态类型
+     * @param {string|null} parentId - 父节点ID
+     * @returns {HTMLElement} 列表项元素
+     */
+    createTypeListItem(typeValue, displayName, isDynamic, parentId) {
+        const item = document.createElement('div');
+        item.className = 'component-type-item';
+
+        const nameElement = document.createElement('div');
+        nameElement.className = 'component-type-item-name';
+        nameElement.textContent = displayName;
+
+        const valueElement = document.createElement('div');
+        valueElement.className = 'component-type-item-value';
+        valueElement.textContent = typeValue;
+
+        item.appendChild(nameElement);
+        item.appendChild(valueElement);
+
+        item.addEventListener('mouseenter', () => {
+            item.style.backgroundColor = '#f8f9fa';
+        });
+
+        item.addEventListener('mouseleave', () => {
+            item.style.backgroundColor = '';
+        });
+
+        item.addEventListener('click', () => {
+            if (isDynamic) {
+                this.createVirtualNode(parentId, typeValue);
+            } else {
+                this.createNewNode(parentId, typeValue);
+            }
+
+            // 关闭对话框
+            const dialog = item.closest('.component-type-dialog');
+            const overlay = document.querySelector('.component-type-dialog-overlay');
+            if (dialog) document.body.removeChild(dialog);
+            if (overlay) document.body.removeChild(overlay);
+        });
+
+        return item;
+    }
+
+    /**
+     * 创建虚拟节点
+     * @param {string|null} parentId - 父节点ID
+     * @param {string} referencedTypeName - 引用的节点类型名称
+     */
+    createVirtualNode(parentId, referencedTypeName) {
+        try {
+            const treeData = stateManager.getState().treeData;
+
+            // 获取父节点（如果存在）
+            const parentNode = parentId ? stateManager.findNode(parentId) : null;
+
+            // 检查是否允许选择此节点类型
+            const canSelect = dynamicNodeTypeManager.canSelectType(
+                parentId,
+                referencedTypeName,
+                treeData
+            );
+
+            if (!canSelect.allowed) {
+                this.showNotification(`无法创建虚拟节点: ${canSelect.reason}`);
+                return;
+            }
+
+            // 创建虚拟节点
+            const virtualNode = virtualNodeProcessor.createVirtualNode(
+                parentNode,
+                referencedTypeName,
+                treeData
+            );
+
+            if (parentId) {
+                // 添加为子节点
+                stateManager.addChildNode(parentId, virtualNode);
+            } else {
+                // 添加为根节点
+                stateManager.addRootNode(virtualNode);
+            }
+
+            // 选中新创建的节点
+            this.selectNode(virtualNode);
+
+            this.showNotification(`已创建虚拟节点: ${referencedTypeName}`);
+
+        } catch (error) {
+            console.error('创建虚拟节点时出错:', error);
+            this.showNotification(`创建虚拟节点失败: ${error.message}`);
+        }
     }
 
     /**
@@ -375,6 +622,7 @@ class TreeEditor {
                 nodeIdGenerator.generateRootId(),
             name: this.generateDefaultName(componentType),
             type: componentType,
+            referenceType: componentType, // 普通节点的referenceType与type相同
             attributes: {},
             constraintPackages: [],
             memberVariables: [],
@@ -382,7 +630,8 @@ class TreeEditor {
             protocols: [],
             layout: 'horizontal',
             description: '',
-            children: []
+            children: [],
+            isExpanded: true // 默认展开所有节点
         };
 
         // 验证节点数据
@@ -538,13 +787,43 @@ class TreeEditor {
     }
 
     /**
+     * 切换节点展开状态
+     * @param {string} nodeId - 节点ID
+     */
+    toggleNodeExpansion(nodeId) {
+        const node = stateManager.findNode(nodeId);
+        if (node && node.children && node.children.length > 0) {
+            // 切换展开状态
+            node.isExpanded = !node.isExpanded;
+
+            // 通知状态管理器更新状态
+            stateManager.updateNodeExpansion(nodeId, node.isExpanded);
+
+            // 重新渲染树形结构
+            this.render(stateManager.getState().treeData);
+
+            this.showNotification(node.isExpanded ? `已展开节点: ${node.name}` : `已收起节点: ${node.name}`);
+        }
+    }
+
+    /**
      * 展开所有节点
      */
     expandAll() {
-        // 实现展开所有节点的逻辑
-        document.querySelectorAll('.tree-children').forEach(children => {
-            children.classList.remove('hidden');
-        });
+        const treeData = stateManager.getState().treeData;
+        const expandRecursive = (nodes) => {
+            nodes.forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    node.isExpanded = true;
+                    expandRecursive(node.children);
+                }
+            });
+        };
+
+        expandRecursive(treeData);
+
+        // 重新渲染树形结构
+        this.render(treeData);
         this.showNotification('已展开所有节点');
     }
 
@@ -552,10 +831,20 @@ class TreeEditor {
      * 收起所有节点
      */
     collapseAll() {
-        // 实现收起所有节点的逻辑
-        document.querySelectorAll('.tree-children').forEach(children => {
-            children.classList.add('hidden');
-        });
+        const treeData = stateManager.getState().treeData;
+        const collapseRecursive = (nodes) => {
+            nodes.forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    node.isExpanded = false;
+                    collapseRecursive(node.children);
+                }
+            });
+        };
+
+        collapseRecursive(treeData);
+
+        // 重新渲染树形结构
+        this.render(treeData);
         this.showNotification('已收起所有节点');
     }
 

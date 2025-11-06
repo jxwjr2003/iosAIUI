@@ -130,6 +130,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -141,6 +142,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -154,6 +156,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -165,6 +168,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -175,6 +179,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -193,6 +198,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -205,6 +211,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -216,6 +223,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -227,6 +235,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -237,6 +246,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -251,6 +261,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -262,6 +273,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -273,6 +285,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -282,6 +295,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -315,6 +329,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -325,6 +340,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#F2F2F7' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     },
@@ -391,6 +407,7 @@ const COMPONENT_ATTRIBUTES = {
         backgroundColor: { type: 'color', defaultValue: '#FFFFFF' },
         alpha: { type: 'number', defaultValue: 1.0, min: 0, max: 1, step: 0.1 },
         cornerRadius: { type: 'number', defaultValue: 0, min: 0 },
+        cornerMask: { type: 'cornerMask', defaultValue: '' },
         borderWidth: { type: 'number', defaultValue: 0, min: 0 },
         borderColor: { type: 'color', defaultValue: '#000000' }
     }

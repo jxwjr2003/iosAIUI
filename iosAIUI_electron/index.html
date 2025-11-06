@@ -54,11 +54,18 @@
                     <h2>iOS 模拟器</h2>
                     <div class="panel-actions">
                         <select id="device-selector" class="device-selector">
+                            <option value="iphone16">iPhone 16</option>
+                            <option value="iphone16plus">iPhone 16 Plus</option>
+                            <option value="iphone16pro">iPhone 16 Pro</option>
+                            <option value="iphone16promax" selected>iPhone 16 Pro Max</option>
                             <option value="iphone15">iPhone 15</option>
                             <option value="iphone15pro">iPhone 15 Pro</option>
                             <option value="iphone14">iPhone 14</option>
                             <option value="custom">自定义</option>
                         </select>
+                        <div id="resolution-display" class="resolution-display">
+                            <span class="resolution-text">393×852 pt (1179×2556 px)</span>
+                        </div>
                         <button id="refresh-simulator-btn" class="icon-btn" title="刷新预览">🔄</button>
                         <button id="zoom-out-btn" class="icon-btn" title="缩小">➖</button>
                         <button id="zoom-in-btn" class="icon-btn" title="放大">➕</button>
@@ -107,6 +114,10 @@
                                 <select id="node-type">
                                     <!-- 节点类型选项将动态生成 -->
                                 </select>
+                            </div>
+                            <div class="property-group">
+                                <label for="node-reference-type">引用类型:</label>
+                                <input type="text" id="node-reference-type">
                             </div>
                         </div>
 
@@ -210,6 +221,8 @@
     <script src="src/utils/nodeIdGenerator.js"></script>
     <script src="src/utils/dataValidator.js"></script>
     <script src="src/utils/constraintLayoutEngine.js"></script>
+    <script src="src/utils/DynamicNodeTypeManager.js"></script>
+    <script src="src/utils/VirtualNodeProcessor.js"></script>
     <script src="src/config/componentAttributes.js"></script>
     <script src="src/managers/AttributeManager.js"></script>
     <script src="src/managers/ConstraintManager.js"></script>

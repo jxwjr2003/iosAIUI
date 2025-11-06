@@ -3,20 +3,78 @@
  * 负责实时渲染和预览UI效果，基于CSS实现iOS风格渲染
  */
 class Simulator {
-    constructor(containerId) {
+    constructor(containerId, eventManager = null) {
         this.container = document.getElementById(containerId);
+        this.eventManager = eventManager;
         this.currentRootNode = null;
         this.zoomLevel = 1.0;
         this.devicePresets = {
-            iphone15: { width: 393, height: 852, name: 'iPhone 15' },
-            iphone15pro: { width: 393, height: 852, name: 'iPhone 15 Pro' },
-            iphone14: { width: 390, height: 844, name: 'iPhone 14' },
-            custom: { width: 393, height: 852, name: '自定义' }
+            iphone16: {
+                width: 393 + 40,
+                height: 852 + 40,
+                name: 'iPhone 16',
+                logicalResolution: '393×852 pt',
+                physicalResolution: '1179×2556 px'
+            },
+            iphone16plus: {
+                width: 428 + 40,
+                height: 926 + 40,
+                name: 'iPhone 16 Plus',
+                logicalResolution: '428×926 pt',
+                physicalResolution: '1284×2778 px'
+            },
+            iphone16pro: {
+                width: 393 + 40,
+                height: 852 + 40,
+                name: 'iPhone 16 Pro',
+                logicalResolution: '393×852 pt',
+                physicalResolution: '1179×2556 px'
+            },
+            iphone16promax: {
+                width: 430 + 40,
+                height: 932 + 40,
+                name: 'iPhone 16 Pro Max',
+                logicalResolution: '430×932 pt',
+                physicalResolution: '1290×2796 px'
+            },
+            iphone15: {
+                width: 393 + 40,
+                height: 852 + 40,
+                name: 'iPhone 15',
+                logicalResolution: '393×852 pt',
+                physicalResolution: '1179×2556 px'
+            },
+            iphone15pro: {
+                width: 393 + 40,
+                height: 852 + 40,
+                name: 'iPhone 15 Pro',
+                logicalResolution: '393×852 pt',
+                physicalResolution: '1179×2556 px'
+            },
+            iphone14: {
+                width: 390 + 40,
+                height: 844 + 40,
+                name: 'iPhone 14',
+                logicalResolution: '390×844 pt',
+                physicalResolution: '1170×2532 px'
+            },
+            custom: {
+                width: 393 + 40,
+                height: 852 + 40,
+                name: '自定义',
+                logicalResolution: '393×852 pt',
+                physicalResolution: '1179×2556 px'
+            }
         };
-        this.currentDevice = 'iphone15';
+        this.currentDevice = 'iphone16promax';
 
         // 初始化组件
         this.init();
+
+        // 发布模拟器就绪事件
+        if (this.eventManager) {
+            this.eventManager.emit('simulator:ready', this);
+        }
     }
 
     /**
@@ -173,15 +231,43 @@ class Simulator {
                 window.constraintLayoutEngine.clearCache();
             }
 
-            // 创建虚拟节点"00"代表模拟器屏幕
+            // 强制DOM重排，确保尺寸更新生效
+            this.forceReflow();
+
+            // 获取实时容器尺寸
+            const containerWidth = this.contentContainer.clientWidth;
+            const containerHeight = this.contentContainer.clientHeight;
+
+            console.log('📱 [Simulator] 渲染根节点:', {
+                '容器宽度': containerWidth,
+                '容器高度': containerHeight,
+                '设备': this.currentDevice,
+                '时间戳': new Date().toISOString()
+            });
+
+            // 创建虚拟节点"00"代表模拟器屏幕 - 确保使用最新设备尺寸
+            const device = this.devicePresets[this.currentDevice];
             const simulatorNode = {
                 id: "00",
                 type: "simulator",
                 attributes: {
-                    width: this.contentContainer.clientWidth,
-                    height: this.contentContainer.clientHeight
+                    width: containerWidth,
+                    height: containerHeight,
+                    deviceWidth: device.width - 40, // 屏幕实际宽度（减去内边距）
+                    deviceHeight: device.height - 40 // 屏幕实际高度（减去内边距）
                 }
             };
+
+            console.log('📏 [Simulator] 虚拟节点"00"尺寸:', {
+                '容器宽度': containerWidth,
+                '容器高度': containerHeight,
+                '设备宽度': device.width,
+                '设备高度': device.height,
+                '屏幕宽度': device.width - 40,
+                '屏幕高度': device.height - 40,
+                '时间戳': new Date().toISOString()
+            });
+
             // 缓存虚拟节点到约束布局引擎
             if (window.constraintLayoutEngine) {
                 window.constraintLayoutEngine.nodeCache.set(simulatorNode.id, {
@@ -194,14 +280,53 @@ class Simulator {
 
             // 创建根节点元素 - 根节点没有父节点，所以传递null
             const rootElement = this.createNodeElement(this.currentRootNode, true, null, this.contentContainer);
+
+            // 检查根节点是否有宽度约束，如果没有才强制设置为100%
+            const hasWidthConstraint = this.hasWidthConstraint(this.currentRootNode);
+            if (!hasWidthConstraint) {
+                rootElement.style.width = '100%';
+                rootElement.style.minWidth = '100%';
+                rootElement.style.maxWidth = '100%';
+                console.log('📏 [Simulator] 根节点无宽度约束，设置宽度为100%');
+            } else {
+                console.log('✅ [Simulator] 根节点有宽度约束，保留约束设置');
+            }
+
             this.contentContainer.appendChild(rootElement);
 
             // 应用约束布局 - 根节点的父节点是contentContainer
             // 新的约束布局引擎会在内部构建依赖图并按拓扑顺序应用约束
             this.applyConstraints(this.currentRootNode, rootElement, null, this.contentContainer);
 
+            // 在下一帧检查是否需要覆盖约束布局引擎的设置
+            requestAnimationFrame(() => {
+                // 只有没有宽度约束时才强制设置100%宽度
+                if (!hasWidthConstraint) {
+                    console.log('🔄 [Simulator] 强制设置根节点宽度为100%', {
+                        '当前宽度': rootElement.offsetWidth,
+                        '目标宽度': this.contentContainer.clientWidth,
+                        '时间戳': new Date().toISOString()
+                    });
+                    rootElement.style.width = '100%';
+                    rootElement.style.minWidth = '100%';
+                    rootElement.style.maxWidth = '100%';
+                } else {
+                    console.log('✅ [Simulator] 保留根节点的宽度约束设置', {
+                        '当前宽度': rootElement.offsetWidth,
+                        '约束宽度': rootElement.style.width,
+                        '时间戳': new Date().toISOString()
+                    });
+                }
+            });
+
             // 更新上下文显示
             this.updateContextDisplay();
+
+            console.log('✅ [Simulator] 根节点渲染完成:', {
+                '根节点宽度': rootElement.offsetWidth,
+                '根节点高度': rootElement.offsetHeight,
+                '时间戳': new Date().toISOString()
+            });
 
         } catch (error) {
             console.error('渲染根节点时出错:', error);
@@ -210,7 +335,7 @@ class Simulator {
     }
 
     /**
-     * 创建节点元素 - 改进版，延迟约束应用
+     * 创建节点元素 - 改进版，延迟约束应用，支持虚拟节点
      * @param {Object} node - 节点数据
      * @param {boolean} isRoot - 是否是根节点
      * @param {Object} parentNode - 父节点数据
@@ -218,6 +343,15 @@ class Simulator {
      * @returns {HTMLElement} 节点元素
      */
     createNodeElement(node, isRoot = false, parentNode = null, parentElement = null) {
+        // 检查是否是虚拟节点 - 添加安全检查
+        const isVirtualNode = window.virtualNodeProcessor &&
+            window.virtualNodeProcessor.isVirtualNode &&
+            window.virtualNodeProcessor.isVirtualNode(node);
+
+        if (isVirtualNode) {
+            return this.createVirtualNodeElement(node, isRoot, parentNode, parentElement);
+        }
+
         const element = document.createElement('div');
         element.className = `simulator-node ${node.type.toLowerCase()}`;
         element.dataset.nodeId = node.id;
@@ -253,6 +387,90 @@ class Simulator {
         this.addContentDisplay(node, element);
 
         return element;
+    }
+
+    /**
+     * 创建虚拟节点元素
+     * @param {Object} virtualNode - 虚拟节点数据
+     * @param {boolean} isRoot - 是否是根节点
+     * @param {Object} parentNode - 父节点数据
+     * @param {HTMLElement} parentElement - 父DOM元素
+     * @returns {HTMLElement} 虚拟节点元素
+     */
+    createVirtualNodeElement(virtualNode, isRoot = false, parentNode = null, parentElement = null) {
+        // 获取虚拟节点的完整子树 - 添加安全检查
+        const virtualSubtree = window.virtualNodeProcessor &&
+            window.virtualNodeProcessor.getVirtualSubtree ?
+            window.virtualNodeProcessor.getVirtualSubtree(virtualNode) : null;
+
+        if (!virtualSubtree || !virtualSubtree.children) {
+            // 如果无法获取虚拟子树，创建占位元素
+            const placeholderElement = document.createElement('div');
+            placeholderElement.className = 'simulator-node simulator-virtual-node';
+            placeholderElement.dataset.nodeId = virtualNode.id;
+            placeholderElement.dataset.nodeType = virtualNode.type;
+            placeholderElement.innerHTML = `
+                <div style="padding: 8px; background: #f0f0f0; border: 1px dashed #ccc; border-radius: 4px;">
+                    <div style="font-weight: 500;">[引用] ${virtualNode.type}</div>
+                    <div style="font-size: 12px; color: #666;">无法加载引用的内容</div>
+                </div>
+            `;
+            return placeholderElement;
+        }
+
+        // 创建虚拟节点容器 - 使用标准的节点元素结构
+        const virtualContainer = document.createElement('div');
+        virtualContainer.className = `simulator-node ${virtualNode.type.toLowerCase()} simulator-virtual-container`;
+        virtualContainer.dataset.nodeId = virtualNode.id;
+        virtualContainer.dataset.nodeType = virtualNode.type;
+        virtualContainer.dataset.isVirtual = 'true';
+        virtualContainer.dataset.referencedRootId = virtualNode.referencedRootId;
+
+        // 应用虚拟节点的样式到容器本身
+        this.applyBaseStyles(virtualNode, virtualContainer, false);
+        this.applyAttributeStyles(virtualNode, virtualContainer);
+        this.applyLayoutStyles(virtualNode, virtualContainer);
+
+        // 创建虚拟内容容器
+        const virtualContent = document.createElement('div');
+        virtualContent.className = 'simulator-virtual-content';
+        virtualContent.style.cssText = `
+            width: 100%;
+            height: 100%;
+            position: relative;
+        `;
+
+        // 渲染虚拟子树
+        virtualSubtree.children.forEach(child => {
+            const childElement = this.createNodeElement(child, false, virtualNode, virtualContent);
+            virtualContent.appendChild(childElement);
+        });
+
+        virtualContainer.appendChild(virtualContent);
+
+        // 缓存节点信息到约束布局引擎
+        this.cacheNodeForConstraints(virtualNode, virtualContainer, parentNode, parentElement);
+
+        return virtualContainer;
+    }
+
+    /**
+     * 应用虚拟节点样式
+     * @param {Object} virtualNode - 虚拟节点数据
+     * @param {HTMLElement} element - DOM元素
+     */
+    applyVirtualNodeStyles(virtualNode, element) {
+        // 应用基础样式
+        this.applyBaseStyles(virtualNode, element, false);
+
+        // 应用属性样式
+        this.applyAttributeStyles(virtualNode, element);
+
+        // 应用布局样式
+        this.applyLayoutStyles(virtualNode, element);
+
+        // 缓存节点信息到约束布局引擎
+        this.cacheNodeForConstraints(virtualNode, element, null, null);
     }
 
     /**
@@ -293,6 +511,9 @@ class Simulator {
     applyAttributeStyles(node, element) {
         if (!node.attributes) return;
 
+        // 获取实际节点类型（处理虚拟节点）
+        const actualNodeType = this.getActualNodeType(node);
+
         // 使用CSS变量设置动态属性
         if (node.attributes.backgroundColor) {
             element.style.setProperty('--background-color', this.parseColor(node.attributes.backgroundColor));
@@ -315,8 +536,8 @@ class Simulator {
             element.style.setProperty('--border-color', this.parseColor(node.attributes.borderColor));
         }
 
-        // 处理字体相关属性
-        if (['UILabel', 'UIButton', 'UITextField', 'UITextView'].includes(node.type)) {
+        // 处理字体相关属性 - 使用实际节点类型
+        if (['UILabel', 'UIButton', 'UITextField', 'UITextView'].includes(actualNodeType)) {
             if (node.attributes.fontSize) {
                 element.style.setProperty('--font-size', `${node.attributes.fontSize}px`);
             }
@@ -334,7 +555,7 @@ class Simulator {
                 this.applyFontStyle(node.attributes.font, element);
             }
 
-            if (node.type === 'UIButton' && node.attributes.titleColor) {
+            if (actualNodeType === 'UIButton' && node.attributes.titleColor) {
                 element.style.setProperty('--title-color', this.parseColor(node.attributes.titleColor));
             }
         }
@@ -356,6 +577,19 @@ class Simulator {
         if (node.attributes.height) {
             element.style.setProperty('--height', `${node.attributes.height}px`);
         }
+    }
+
+    /**
+     * 获取实际节点类型（处理虚拟节点）
+     * @param {Object} node - 节点数据
+     * @returns {string} 实际节点类型
+     */
+    getActualNodeType(node) {
+        // 如果是虚拟节点，返回被引用根节点的实际类型
+        if (node.isVirtual && node.referencedRootType) {
+            return node.referencedRootType;
+        }
+        return node.type;
     }
 
     /**
@@ -458,6 +692,31 @@ class Simulator {
                 break;
             case 'UIView':
                 // UIView默认不添加额外内容
+                break;
+            case 'UITableViewCell':
+                this.addTableViewCellContent(node, element);
+                break;
+            case 'UISwitch':
+            case 'UISlider':
+            case 'UISegmentedControl':
+            case 'UIScrollView':
+            case 'UICollectionView':
+            case 'UIStackView':
+            case 'UIAlertView':
+            case 'UISearchBar':
+            case 'UIActivityIndicatorView':
+            case 'UIProgressView':
+            case 'UIPickerView':
+            case 'UIDatePicker':
+            case 'UIWebView':
+            case 'WKWebView':
+            case 'UIToolbar':
+            case 'UINavigationBar':
+            case 'UITabBar':
+            case 'UIStatusBar':
+            case 'UIPopoverController':
+            case 'UIActionSheet':
+                // 这些组件类型不需要额外内容，保持背景颜色可见
                 break;
             default:
                 // 为其他组件类型添加默认标识
@@ -564,6 +823,55 @@ class Simulator {
             placeholderDiv.textContent = imageName;
             element.appendChild(placeholderDiv);
         }
+    }
+
+    /**
+     * 添加表格单元格内容
+     * @param {Object} node - 节点数据
+     * @param {HTMLElement} element - DOM元素
+     */
+    addTableViewCellContent(node, element) {
+        const textLabel = node.attributes?.textLabel ?? '单元格';
+        const detailTextLabel = node.attributes?.detailTextLabel ?? '';
+
+        // 创建表格单元格内容容器
+        const cellContent = document.createElement('div');
+        cellContent.className = 'simulator-tableviewcell-content';
+        cellContent.style.cssText = `
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            box-sizing: border-box;
+        `;
+
+        // 创建文本标签
+        const textLabelElement = document.createElement('div');
+        textLabelElement.className = 'simulator-tableviewcell-textlabel';
+        textLabelElement.textContent = textLabel;
+        textLabelElement.style.cssText = `
+            flex: 1;
+            font-size: 16px;
+            color: #000000;
+        `;
+
+        cellContent.appendChild(textLabelElement);
+
+        // 如果有详细文本标签，添加它
+        if (detailTextLabel) {
+            const detailTextLabelElement = document.createElement('div');
+            detailTextLabelElement.className = 'simulator-tableviewcell-detailtextlabel';
+            detailTextLabelElement.textContent = detailTextLabel;
+            detailTextLabelElement.style.cssText = `
+                font-size: 14px;
+                color: #666666;
+                margin-left: 8px;
+            `;
+            cellContent.appendChild(detailTextLabelElement);
+        }
+
+        element.appendChild(cellContent);
     }
 
     /**
@@ -856,27 +1164,96 @@ class Simulator {
     }
 
     /**
+     * 更新分辨率显示
+     */
+    updateResolutionDisplay() {
+        const device = this.devicePresets[this.currentDevice];
+        if (!device) return;
+
+        const resolutionDisplay = document.getElementById('resolution-display');
+        if (resolutionDisplay) {
+            const resolutionText = resolutionDisplay.querySelector('.resolution-text');
+            if (resolutionText) {
+                resolutionText.textContent = `${device.logicalResolution} (${device.physicalResolution})`;
+            }
+        }
+    }
+
+    /**
+     * 强制DOM重排
+     */
+    forceReflow() {
+        // 通过读取offsetWidth等属性强制触发重排
+        if (this.contentContainer) {
+            this.contentContainer.offsetWidth;
+        }
+        if (this.screenContainer) {
+            this.screenContainer.offsetWidth;
+        }
+        if (this.deviceContainer) {
+            this.deviceContainer.offsetWidth;
+        }
+    }
+
+    /**
      * 更新设备视图
      */
     updateDeviceView() {
         const device = this.devicePresets[this.currentDevice];
         if (!device) return;
 
+        console.log('🔄 [Simulator] 更新设备视图:', {
+            '设备': this.currentDevice,
+            '宽度': device.width,
+            '高度': device.height,
+            '时间戳': new Date().toISOString()
+        });
+
         // 更新设备尺寸
         this.deviceContainer.style.width = `${device.width}px`;
         this.deviceContainer.style.height = `${device.height}px`;
 
-        // 更新屏幕尺寸
-        this.screenContainer.style.width = `${device.width - 40}px`; // 减去内边距
-        this.screenContainer.style.height = `${device.height - 40}px`;
+        // 更新屏幕尺寸 - 补偿边框宽度
+        this.screenContainer.style.width = `${device.width - 40 + 2}px`; // 减去内边距，补偿边框
+        this.screenContainer.style.height = `${device.height - 40 + 2}px`;
+
+        // 强制DOM重排，确保尺寸更新生效
+        this.forceReflow();
+
+        // 更新分辨率显示
+        this.updateResolutionDisplay();
 
         // 应用缩放
         this.applyZoom();
 
-        // 重新渲染当前根节点
-        if (this.currentRootNode) {
-            this.renderRootNode();
-        }
+        // 使用requestAnimationFrame确保DOM完全更新后再渲染根节点
+        requestAnimationFrame(() => {
+            // 再次强制重排，确保所有尺寸更新完成
+            this.forceReflow();
+
+            // 获取实时容器尺寸进行验证
+            const containerWidth = this.contentContainer.clientWidth;
+            const containerHeight = this.contentContainer.clientHeight;
+
+            console.log('📏 [Simulator] 设备切换后容器尺寸验证:', {
+                '设备': this.currentDevice,
+                '容器宽度': containerWidth,
+                '容器高度': containerHeight,
+                '目标宽度': device.width - 40,
+                '时间戳': new Date().toISOString()
+            });
+
+            // 清空约束布局引擎缓存，确保设备切换后约束重新计算
+            if (window.constraintLayoutEngine) {
+                window.constraintLayoutEngine.clearCache();
+                console.log('🧹 [Simulator] 设备切换后清理约束缓存，确保重新计算');
+            }
+
+            // 重新渲染当前根节点
+            if (this.currentRootNode) {
+                this.renderRootNode();
+            }
+        });
     }
 
     /**
@@ -1068,6 +1445,47 @@ class Simulator {
     }
 
     /**
+     * 检查节点是否有宽度约束
+     * @param {Object} node - 节点数据
+     * @returns {boolean} 是否有宽度约束
+     */
+    hasWidthConstraint(node) {
+        if (!node.constraintPackages || node.constraintPackages.length === 0) {
+            return false;
+        }
+
+        // 检查所有约束包中的宽度约束
+        for (const constraintPackage of node.constraintPackages) {
+            if (constraintPackage.constraints) {
+                for (const constraint of constraintPackage.constraints) {
+                    if (constraint.type === 'size' && constraint.attribute === 'width') {
+                        console.log('📐 [Simulator] 找到宽度约束:', {
+                            '节点ID': node.id,
+                            '约束关系': constraint.relation,
+                            '约束值': constraint.value,
+                            '约束包': constraintPackage.name
+                        });
+                        return true;
+                    }
+                    // 检查边缘约束中的右侧约束，这也会影响宽度
+                    if (constraint.type === 'edge' &&
+                        (constraint.attribute === 'right' || constraint.attribute === 'trailing')) {
+                        console.log('📐 [Simulator] 找到右侧边缘约束:', {
+                            '节点ID': node.id,
+                            '约束关系': constraint.relation,
+                            '约束值': constraint.value,
+                            '约束包': constraintPackage.name
+                        });
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * 销毁组件
      */
     destroy() {
@@ -1083,7 +1501,10 @@ let simulator = null;
 // 初始化模拟器
 document.addEventListener('DOMContentLoaded', () => {
     simulator = new Simulator('simulator-container');
+    // 导出模拟器到全局变量
+    window.simulator = simulator;
+    console.log('✅ [Simulator] 全局模拟器实例已创建:', {
+        '实例存在': !!window.simulator,
+        '时间戳': new Date().toISOString()
+    });
 });
-
-// 导出模拟器
-window.simulator = simulator;

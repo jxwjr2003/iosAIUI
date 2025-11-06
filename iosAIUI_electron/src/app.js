@@ -38,6 +38,9 @@ class IOSUIEditor {
             this.isInitialized = true;
             console.log('✅ iOS UI Editor 启动完成');
 
+            // 确保JSON查看器对话框在启动时隐藏
+            this.ensureJSONViewerHidden();
+
             // 不再显示欢迎消息
             // this.showWelcomeMessage();
 
@@ -97,16 +100,24 @@ class IOSUIEditor {
     async initUIComponents() {
         console.log('🎨 初始化UI组件...');
 
+        // 使用事件管理器协调组件初始化
+        const eventManager = window.eventManager;
+
         // 初始化树形编辑器
         if (window.treeEditor) {
             this.components.treeEditor = window.treeEditor;
             console.log('✅ 树形编辑器已初始化');
         }
 
-        // 初始化模拟器
+        // 初始化模拟器（使用事件管理器）
         if (window.simulator) {
             this.components.simulator = window.simulator;
             console.log('✅ iOS模拟器已初始化');
+        } else {
+            // 如果全局模拟器不存在，通过事件管理器创建
+            const simulator = new Simulator('simulator-container', eventManager);
+            this.components.simulator = simulator;
+            console.log('✅ iOS模拟器已通过事件管理器初始化');
         }
 
         // 初始化数据服务（如果存在）
@@ -119,6 +130,18 @@ class IOSUIEditor {
         if (window.aiChat) {
             this.components.aiChat = window.aiChat;
             console.log('✅ AI聊天助手已初始化');
+        }
+
+        // 初始化约束布局引擎（使用事件管理器）
+        if (window.constraintLayoutEngine) {
+            this.components.constraintLayoutEngine = window.constraintLayoutEngine;
+            console.log('✅ 约束布局引擎已初始化');
+        } else {
+            // 如果全局约束布局引擎不存在，通过事件管理器创建
+            const constraintLayoutEngine = new ConstraintLayoutEngine(eventManager);
+            this.components.constraintLayoutEngine = constraintLayoutEngine;
+            window.constraintLayoutEngine = constraintLayoutEngine;
+            console.log('✅ 约束布局引擎已通过事件管理器初始化');
         }
     }
 
@@ -488,6 +511,32 @@ class IOSUIEditor {
             components: Object.keys(this.components),
             state: this.components.stateManager ? this.components.stateManager.getState() : null
         };
+    }
+
+    /**
+     * 确保JSON查看器对话框在启动时隐藏
+     */
+    ensureJSONViewerHidden() {
+        try {
+            // 方法1: 通过全局jsonViewer实例隐藏
+            if (window.jsonViewer && typeof window.jsonViewer.hide === 'function') {
+                window.jsonViewer.hide();
+                console.log('✅ JSON查看器对话框已通过实例隐藏');
+                return;
+            }
+
+            // 方法2: 直接操作DOM元素隐藏
+            const jsonViewerDialog = document.getElementById('json-viewer-dialog');
+            if (jsonViewerDialog) {
+                jsonViewerDialog.style.display = 'none';
+                console.log('✅ JSON查看器对话框已通过DOM操作隐藏');
+                return;
+            }
+
+            console.log('⚠️ JSON查看器对话框未找到，可能尚未初始化');
+        } catch (error) {
+            console.warn('隐藏JSON查看器对话框时出错:', error);
+        }
     }
 
     /**

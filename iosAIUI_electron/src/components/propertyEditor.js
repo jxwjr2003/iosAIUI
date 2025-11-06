@@ -7,6 +7,7 @@ class PropertyEditor {
         this.container = document.getElementById(containerId);
         this.currentNode = null;
         this.isEditing = false;
+        this.readOnlyNotification = null; // 单例警告元素
 
         // 初始化管理器
         this.managers = {
@@ -182,19 +183,35 @@ class PropertyEditor {
     populateEditor(node) {
         this.isEditing = true;
 
+        // 首先清理可能存在的只读警告
+        this.clearReadOnlyNotification();
+
+        // 首先填充节点类型选择器，确保选项最新
+        this.populateNodeTypeSelect();
+
         // 更新基础信息
         this.updateBaseInfo(node);
 
-        // 使用管理器更新各个编辑器
-        this.updateAttributesEditor(node.attributes || {});
-        this.updateConstraintsEditor(node.constraintPackages || []);
-        this.updateMemberVariablesEditor(node.memberVariables || []);
-        this.updateFunctionsEditor(node.functions || []);
-        this.updateProtocolsEditor(node.protocols || []);
+        // 检查是否是虚拟节点或虚拟节点的子节点
+        const isVirtualNode = virtualNodeProcessor && virtualNodeProcessor.isVirtualNode(node);
+        const isVirtualChild = node._isVirtualChild === true;
+
+        // 使用管理器更新各个编辑器，根据节点类型设置编辑权限
+        // 对于虚拟节点，基于实际类型而不是引用类型来编辑
+        this.updateAttributesEditor(node.attributes || {}, isVirtualNode || isVirtualChild);
+        this.updateConstraintsEditor(node.constraintPackages || [], isVirtualNode || isVirtualChild);
+        this.updateMemberVariablesEditor(node.memberVariables || [], isVirtualNode || isVirtualChild);
+        this.updateFunctionsEditor(node.functions || [], isVirtualNode || isVirtualChild);
+        this.updateProtocolsEditor(node.protocols || [], isVirtualNode || isVirtualChild);
 
         // 更新布局方向和描述
         this.updateLayoutDirection(node.layout || 'horizontal');
         this.updateDescription(node.description || '');
+
+        // 如果是虚拟节点或其子节点，调整编辑权限并显示适当的提示
+        if (isVirtualNode || isVirtualChild) {
+            this.adjustVirtualNodeEditing(node);
+        }
     }
 
     /**
@@ -218,6 +235,12 @@ class PropertyEditor {
         const nodeTypeSelect = document.getElementById('node-type');
         if (nodeTypeSelect) {
             nodeTypeSelect.value = node.type;
+        }
+
+        // 引用类型
+        const referenceTypeInput = document.getElementById('node-reference-type');
+        if (referenceTypeInput) {
+            referenceTypeInput.value = node.referenceType || node.type;
         }
     }
 
@@ -411,12 +434,246 @@ class PropertyEditor {
         // 完整的 UIKit 组件类型列表
         const componentTypes = getSupportedComponentTypes();
 
-        // 添加选项
+        // 添加标准组件类型选项
         componentTypes.forEach(type => {
             const option = document.createElement('option');
             option.value = type;
             option.textContent = type;
             nodeTypeSelect.appendChild(option);
+        });
+
+        // 添加动态节点类型选项（如果可用）
+        if (window.dynamicNodeTypeManager &&
+            window.dynamicNodeTypeManager.getAvailableTypes) {
+
+            const dynamicTypes = window.dynamicNodeTypeManager.getAvailableTypes();
+
+            if (dynamicTypes.length > 0) {
+                // 添加分隔符
+                const separator = document.createElement('option');
+                separator.disabled = true;
+                separator.textContent = '──────────';
+                nodeTypeSelect.appendChild(separator);
+
+                // 添加动态类型
+                dynamicTypes.forEach(dynamicType => {
+                    const option = document.createElement('option');
+                    option.value = dynamicType.name;
+                    option.textContent = `[引用] ${dynamicType.name}`;
+                    nodeTypeSelect.appendChild(option);
+                });
+            }
+        }
+    }
+
+    /**
+     * 调整虚拟节点的编辑功能
+     * @param {Object} node - 节点数据
+     */
+    adjustVirtualNodeEditing(node) {
+        const isVirtualNode = virtualNodeProcessor && virtualNodeProcessor.isVirtualNode(node);
+        const isVirtualChild = node._isVirtualChild === true;
+
+        // 虚拟节点本身：允许编辑名称、属性、约束包
+        if (isVirtualNode) {
+            // 允许编辑节点名称
+            const nodeNameInput = document.getElementById('node-name');
+            if (nodeNameInput) nodeNameInput.disabled = false;
+
+            // 允许编辑布局和描述
+            const layoutDirectionSelect = document.getElementById('layout-direction');
+            if (layoutDirectionSelect) layoutDirectionSelect.disabled = false;
+
+            const nodeDescriptionTextarea = document.getElementById('node-description');
+            if (nodeDescriptionTextarea) nodeDescriptionTextarea.disabled = false;
+
+            // 禁用类型选择（引用节点的类型由被引用节点决定）
+            const nodeTypeSelect = document.getElementById('node-type');
+            if (nodeTypeSelect) nodeTypeSelect.disabled = true;
+
+            // 允许编辑属性和约束包
+            const addAttributeBtn = document.getElementById('add-attribute-btn');
+            if (addAttributeBtn) addAttributeBtn.style.display = 'inline-block';
+
+            const addConstraintPackageBtn = document.getElementById('add-constraint-package-btn');
+            if (addConstraintPackageBtn) addConstraintPackageBtn.style.display = 'inline-block';
+
+            // 禁用其他编辑功能
+            const addMemberVariableBtn = document.getElementById('add-member-variable-btn');
+            if (addMemberVariableBtn) addMemberVariableBtn.style.display = 'none';
+
+            const addFunctionBtn = document.getElementById('add-function-btn');
+            if (addFunctionBtn) addFunctionBtn.style.display = 'none';
+
+            const addProtocolBtn = document.getElementById('add-protocol-btn');
+            if (addProtocolBtn) addProtocolBtn.style.display = 'none';
+
+            // 显示引用节点提示
+            this.showVirtualNodeNotification(node);
+
+        } else if (isVirtualChild) {
+            // 虚拟节点的子节点：完全只读
+            this.disableVirtualChildEditing();
+        }
+    }
+
+    /**
+     * 禁用虚拟节点子节点的编辑功能
+     */
+    disableVirtualChildEditing() {
+        // 禁用所有基础信息编辑
+        const nodeNameInput = document.getElementById('node-name');
+        if (nodeNameInput) nodeNameInput.disabled = true;
+
+        const nodeTypeSelect = document.getElementById('node-type');
+        if (nodeTypeSelect) nodeTypeSelect.disabled = true;
+
+        const layoutDirectionSelect = document.getElementById('layout-direction');
+        if (layoutDirectionSelect) layoutDirectionSelect.disabled = true;
+
+        const nodeDescriptionTextarea = document.getElementById('node-description');
+        if (nodeDescriptionTextarea) nodeDescriptionTextarea.disabled = true;
+
+        // 禁用所有添加按钮
+        const addAttributeBtn = document.getElementById('add-attribute-btn');
+        if (addAttributeBtn) addAttributeBtn.style.display = 'none';
+
+        const addConstraintPackageBtn = document.getElementById('add-constraint-package-btn');
+        if (addConstraintPackageBtn) addConstraintPackageBtn.style.display = 'none';
+
+        const addMemberVariableBtn = document.getElementById('add-member-variable-btn');
+        if (addMemberVariableBtn) addMemberVariableBtn.style.display = 'none';
+
+        const addFunctionBtn = document.getElementById('add-function-btn');
+        if (addFunctionBtn) addFunctionBtn.style.display = 'none';
+
+        const addProtocolBtn = document.getElementById('add-protocol-btn');
+        if (addProtocolBtn) addProtocolBtn.style.display = 'none';
+
+        // 显示只读提示
+        this.showReadOnlyNotification('虚拟节点的子节点为只读状态');
+    }
+
+    /**
+     * 禁用虚拟节点的编辑功能（保留用于兼容性）
+     * @param {Object} node - 节点数据
+     */
+    disableVirtualNodeEditing(node) {
+        // 禁用基础信息编辑
+        const nodeNameInput = document.getElementById('node-name');
+        if (nodeNameInput) nodeNameInput.disabled = true;
+
+        const nodeTypeSelect = document.getElementById('node-type');
+        if (nodeTypeSelect) nodeTypeSelect.disabled = true;
+
+        const layoutDirectionSelect = document.getElementById('layout-direction');
+        if (layoutDirectionSelect) layoutDirectionSelect.disabled = true;
+
+        const nodeDescriptionTextarea = document.getElementById('node-description');
+        if (nodeDescriptionTextarea) nodeDescriptionTextarea.disabled = true;
+
+        // 禁用添加按钮（除了约束包和属性）
+        const addMemberVariableBtn = document.getElementById('add-member-variable-btn');
+        if (addMemberVariableBtn) addMemberVariableBtn.style.display = 'none';
+
+        const addFunctionBtn = document.getElementById('add-function-btn');
+        if (addFunctionBtn) addFunctionBtn.style.display = 'none';
+
+        const addProtocolBtn = document.getElementById('add-protocol-btn');
+        if (addProtocolBtn) addProtocolBtn.style.display = 'none';
+
+        // 显示只读提示
+        this.showReadOnlyNotification();
+    }
+
+    /**
+     * 显示虚拟节点提示
+     * @param {Object} node - 虚拟节点数据
+     */
+    showVirtualNodeNotification(node) {
+        // 清理之前可能存在的警告元素
+        this.clearReadOnlyNotification();
+
+        // 创建新的警告元素
+        this.readOnlyNotification = document.createElement('div');
+        this.readOnlyNotification.className = 'readonly-notification';
+        this.readOnlyNotification.style.cssText = `
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin: 10px 0;
+            color: #0c5460;
+            font-size: 14px;
+        `;
+
+        const referenceType = node.referenceType || '未知类型';
+        const actualType = node.type || '未知类型';
+
+        this.readOnlyNotification.innerHTML = `
+            <strong>🔗 引用节点</strong><br>
+            引用类型: ${referenceType}<br>
+            实际类型: ${actualType}<br>
+            <small>可编辑：名称、属性、约束包</small>
+        `;
+
+        // 插入到属性编辑器顶部
+        const firstChild = this.container.firstChild;
+        if (firstChild) {
+            this.container.insertBefore(this.readOnlyNotification, firstChild);
+        } else {
+            this.container.appendChild(this.readOnlyNotification);
+        }
+    }
+
+    /**
+     * 显示只读提示
+     * @param {string} message - 可选的自定义消息
+     */
+    showReadOnlyNotification(message = null) {
+        // 清理之前可能存在的警告元素
+        this.clearReadOnlyNotification();
+
+        // 创建新的警告元素
+        this.readOnlyNotification = document.createElement('div');
+        this.readOnlyNotification.className = 'readonly-notification';
+        this.readOnlyNotification.style.cssText = `
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin: 10px 0;
+            color: #856404;
+            font-size: 14px;
+        `;
+
+        this.readOnlyNotification.textContent = message ||
+            '⚠️ 虚拟节点及其子节点只能编辑属性(attributes)和约束包(constraintPackages)';
+
+        // 插入到属性编辑器顶部
+        const firstChild = this.container.firstChild;
+        if (firstChild) {
+            this.container.insertBefore(this.readOnlyNotification, firstChild);
+        } else {
+            this.container.appendChild(this.readOnlyNotification);
+        }
+    }
+
+    /**
+     * 清理只读提示
+     */
+    clearReadOnlyNotification() {
+        if (this.readOnlyNotification && this.readOnlyNotification.parentNode) {
+            this.readOnlyNotification.parentNode.removeChild(this.readOnlyNotification);
+            this.readOnlyNotification = null;
+        }
+
+        // 额外清理：移除任何可能遗留的只读通知元素
+        const existingNotifications = this.container.querySelectorAll('.readonly-notification');
+        existingNotifications.forEach(notification => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
         });
     }
 
