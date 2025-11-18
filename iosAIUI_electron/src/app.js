@@ -126,12 +126,6 @@ class IOSUIEditor {
             console.log('✅ 数据服务已初始化');
         }
 
-        // 初始化AI聊天助手（如果存在）
-        if (window.aiChat) {
-            this.components.aiChat = window.aiChat;
-            console.log('✅ AI聊天助手已初始化');
-        }
-
         // 初始化约束布局引擎（使用事件管理器）
         if (window.constraintLayoutEngine) {
             this.components.constraintLayoutEngine = window.constraintLayoutEngine;
@@ -142,6 +136,29 @@ class IOSUIEditor {
             this.components.constraintLayoutEngine = constraintLayoutEngine;
             window.constraintLayoutEngine = constraintLayoutEngine;
             console.log('✅ 约束布局引擎已通过事件管理器初始化');
+        }
+
+        // 初始化文件浏览器
+        await this.initFileBrowser();
+    }
+
+    /**
+     * 初始化文件浏览器
+     */
+    async initFileBrowser() {
+        console.log('📁 初始化文件浏览器...');
+
+        // 等待文件浏览器初始化
+        if (window.fileBrowser) {
+            this.components.fileBrowser = window.fileBrowser;
+            console.log('✅ 文件浏览器已初始化');
+
+            // 监听状态变化，实现自动保存
+            if (this.components.stateManager) {
+                this.setupAutoSave();
+            }
+        } else {
+            console.warn('⚠️ 文件浏览器未找到，将使用回退方式');
         }
     }
 
@@ -167,19 +184,11 @@ class IOSUIEditor {
      * 绑定工具栏事件
      */
     bindToolbarEvents() {
-        // 导入JSON按钮
-        const importBtn = document.getElementById('import-btn');
-        if (importBtn) {
-            importBtn.addEventListener('click', () => {
-                this.showImportDialog();
-            });
-        }
-
-        // 导出JSON按钮
-        const exportBtn = document.getElementById('export-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportData();
+        // 另存为按钮
+        const saveAsBtn = document.getElementById('save-as-btn');
+        if (saveAsBtn) {
+            saveAsBtn.addEventListener('click', () => {
+                this.saveAsFile();
             });
         }
 
@@ -300,6 +309,39 @@ class IOSUIEditor {
     }
 
     /**
+     * 设置自动保存
+     */
+    setupAutoSave() {
+        console.log('💾 设置自动保存...');
+
+        // 监听状态变化，实现自动保存
+        if (this.components.stateManager && this.components.fileBrowser) {
+            // 使用防抖函数避免频繁保存
+            let saveTimeout = null;
+
+            const debouncedSave = () => {
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                }
+
+                saveTimeout = setTimeout(async () => {
+                    if (this.components.fileBrowser.currentFilePath) {
+                        await this.components.fileBrowser.saveCurrentFile();
+                    }
+                }, 2000); // 2秒后自动保存
+            };
+
+            // 监听状态变化事件
+            window.addEventListener('stateChanged', debouncedSave);
+            window.addEventListener('nodeAdded', debouncedSave);
+            window.addEventListener('nodeUpdated', debouncedSave);
+            window.addEventListener('nodeDeleted', debouncedSave);
+
+            console.log('✅ 自动保存已设置');
+        }
+    }
+
+    /**
      * 从本地存储加载数据
      */
     loadFromLocalStorage() {
@@ -341,82 +383,23 @@ class IOSUIEditor {
     }
 
     /**
-     * 显示导入对话框
+     * 另存为文件
      */
-    showImportDialog() {
-        // 创建文件输入元素
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                this.importData(file);
-            }
-        });
-
-        fileInput.click();
-    }
-
-    /**
-     * 导入数据
-     * @param {File} file - JSON文件
-     */
-    async importData(file) {
+    async saveAsFile() {
         try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-
-            // 验证数据
-            if (this.components.dataValidator) {
-                const validation = this.components.dataValidator.validateImportData(data);
-                if (validation.isValid && validation.data) {
-                    this.components.stateManager.importState(validation.data);
-                    this.showNotification('✅ 数据导入成功');
+            if (this.components.fileBrowser) {
+                const success = await this.components.fileBrowser.saveAsFile();
+                if (success) {
+                    this.showNotification('✅ 文件已另存为');
                 } else {
-                    this.showError('数据验证失败: ' + validation.errors.join(', '));
+                    this.showError('另存为失败');
                 }
             } else {
-                this.components.stateManager.importState(data);
-                this.showNotification('✅ 数据导入成功');
+                throw new Error('文件浏览器未初始化');
             }
         } catch (error) {
-            this.showError('导入失败: ' + error.message);
-        }
-    }
-
-    /**
-     * 导出数据
-     */
-    async exportData() {
-        try {
-            // 检查数据服务是否已初始化
-            if (!this.components.dataService) {
-                throw new Error('数据服务未初始化，请稍后重试');
-            }
-
-            // 使用数据服务的导出功能
-            const result = await this.components.dataService.exportToFile({
-                includeSettings: true,
-                includeModificationLog: false,
-                includeChatHistory: false,
-                format: 'pretty',
-                timestamp: true
-            });
-
-            if (result.success) {
-                const successMessage = result.filePath
-                    ? `✅ 数据导出成功: ${result.filename}\n保存位置: ${result.filePath}`
-                    : `✅ 数据导出成功: ${result.filename}`;
-                this.showNotification(successMessage);
-                console.log('📄 文件导出详情:', result);
-            } else {
-                throw new Error(result.message || '导出失败');
-            }
-        } catch (error) {
-            console.error('❌ 导出失败:', error);
-            this.showError('导出失败: ' + error.message);
+            console.error('❌ 另存为失败:', error);
+            this.showError('另存为失败: ' + error.message);
         }
     }
 

@@ -18,6 +18,7 @@ export interface RouteConfig {
     statusCode: number;
     description?: string;
     isDefault?: boolean;
+    priority?: number;
 }
 export interface JsonField {
     key: string;
@@ -55,6 +56,8 @@ export declare class MockServerEngine extends EventEmitter {
     };
     updateRouteConfig(config: MockServerConfig): Promise<void>;
     updateRoute(routeId: string, updatedRoute: Partial<RouteConfig>): void;
+    addRoute(newRoute: RouteConfig): void;
+    removeRoute(routeId: string): void;
     private handleRequest;
     private findMatchingRoute;
     private parseHeaders;

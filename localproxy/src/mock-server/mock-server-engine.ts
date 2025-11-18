@@ -7,7 +7,7 @@ export interface MockServerConfig {
     name: string;
     port: number;
     protocol: 'http' | 'https';
-    routes: RouteConfig[];
+    routes: RouteConfig[]; // 改为路由数组支持多路由
     description?: string;
     createdAt?: Date;
     updatedAt?: Date;
@@ -22,6 +22,7 @@ export interface RouteConfig {
     statusCode: number;
     description?: string;
     isDefault?: boolean;
+    priority?: number; // 路由匹配优先级，数字越大优先级越高
 }
 
 export interface JsonField {
@@ -134,18 +135,35 @@ export class MockServerEngine extends EventEmitter {
             throw new Error('No configuration loaded');
         }
 
+        // 更新特定路由配置
         const routeIndex = this.currentConfig.routes.findIndex(route => route.id === routeId);
-        if (routeIndex === -1) {
-            throw new Error(`Route with id ${routeId} not found`);
+        if (routeIndex >= 0) {
+            this.currentConfig.routes[routeIndex] = {
+                ...this.currentConfig.routes[routeIndex],
+                ...updatedRoute
+            };
+            this.emit('routeUpdated', { updatedRoute: this.currentConfig.routes[routeIndex] });
+        }
+    }
+
+    public addRoute(newRoute: RouteConfig): void {
+        if (!this.currentConfig) {
+            throw new Error('No configuration loaded');
         }
 
-        // 更新路由配置
-        this.currentConfig.routes[routeIndex] = {
-            ...this.currentConfig.routes[routeIndex],
-            ...updatedRoute
-        };
+        // 添加新路由
+        this.currentConfig.routes.push(newRoute);
+        this.emit('routeAdded', { newRoute });
+    }
 
-        this.emit('routeUpdated', { routeId, updatedRoute: this.currentConfig.routes[routeIndex] });
+    public removeRoute(routeId: string): void {
+        if (!this.currentConfig) {
+            throw new Error('No configuration loaded');
+        }
+
+        // 移除路由
+        this.currentConfig.routes = this.currentConfig.routes.filter(route => route.id !== routeId);
+        this.emit('routeRemoved', { routeId });
     }
 
     private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -233,27 +251,31 @@ export class MockServerEngine extends EventEmitter {
     }
 
     private findMatchingRoute(request: MockServerRequest): RouteConfig | null {
-        if (!this.currentConfig) {
+        if (!this.currentConfig || this.currentConfig.routes.length === 0) {
             return null;
         }
 
-        // 首先尝试精确匹配
-        const exactMatches = this.currentConfig.routes.filter(route => {
-            const methodMatches = route.method === request.method;
-            const pathMatches = route.path === request.url;
-            return methodMatches && pathMatches;
+        // 按优先级排序路由（优先级高的先匹配）
+        const sortedRoutes = [...this.currentConfig.routes].sort((a, b) => {
+            const priorityA = a.priority || 0;
+            const priorityB = b.priority || 0;
+            return priorityB - priorityA; // 降序排列
         });
 
-        if (exactMatches.length > 0) {
-            // 优先返回标记为默认的精确匹配，否则返回第一个精确匹配
-            return exactMatches.find(route => route.isDefault) || exactMatches[0];
+        // 查找匹配的路由
+        for (const route of sortedRoutes) {
+            const methodMatches = route.method === request.method;
+            const pathMatches = route.path === request.url;
+
+            if (methodMatches && pathMatches) {
+                return route;
+            }
         }
 
         // 如果没有精确匹配，查找默认路由
-        const defaultRoutes = this.currentConfig.routes.filter(route => route.isDefault);
-        if (defaultRoutes.length > 0) {
-            // 返回第一个默认路由
-            return defaultRoutes[0];
+        const defaultRoute = sortedRoutes.find(route => route.isDefault);
+        if (defaultRoute) {
+            return defaultRoute;
         }
 
         // 没有匹配的路由

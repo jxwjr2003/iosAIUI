@@ -34,5 +34,9 @@ export declare class ConfigManager {
     updateSettings(settings: Partial<AppConfig['settings']>): Promise<void>;
     getSettings(): AppConfig['settings'];
     getConfigPath(): string;
+    /**
+     * 迁移旧版配置（从单路由到多路由）
+     */
+    private migrateLegacyConfig;
 }
 //# sourceMappingURL=config-manager.d.ts.map

@@ -6,10 +6,12 @@ class LocalProxyUI {
         this.logs = [];
         this.mockConfigs = [];
         this.currentMockConfig = null;
+        this.serverStatuses = []; // 存储所有服务器状态
 
         this.initializeEventListeners();
         this.loadLogs();
         this.loadMockConfigs();
+        this.loadServerStatuses();
     }
 
     initializeEventListeners() {
@@ -22,6 +24,16 @@ class LocalProxyUI {
         // 停止模拟服务器
         document.getElementById('stopMockServer').addEventListener('click', () => {
             this.stopMockServer();
+        });
+
+        // 启动所有模拟服务器
+        document.getElementById('startAllMockServers').addEventListener('click', () => {
+            this.startAllMockServers();
+        });
+
+        // 停止所有模拟服务器
+        document.getElementById('stopAllMockServers').addEventListener('click', () => {
+            this.stopAllMockServers();
         });
 
         // 代理服务器表单提交
@@ -58,6 +70,15 @@ class LocalProxyUI {
             this.saveMockConfig();
         });
 
+        // 导入导出配置
+        document.getElementById('importConfig').addEventListener('click', () => {
+            this.showImportModal();
+        });
+
+        document.getElementById('exportConfig').addEventListener('click', () => {
+            this.showExportModal();
+        });
+
         // 打开文件保存位置
         document.getElementById('openConfigLocation').addEventListener('click', () => {
             this.openConfigLocation();
@@ -87,7 +108,32 @@ class LocalProxyUI {
             window.electronAPI.onLogAdded((log) => {
                 this.addLogToUI(log);
             });
+
+            // 监听服务器状态变化
+            window.electronAPI.onMockServersStatusChanged((statuses) => {
+                this.serverStatuses = statuses;
+                this.renderServerStatuses();
+            });
+
+            window.electronAPI.onMockServerStatusChanged((status) => {
+                this.updateServerStatus(status);
+                this.renderServerStatuses();
+            });
+
+            // 监听存储相关事件
+            window.electronAPI.onStorageLocationChanged((location) => {
+                this.updateCurrentStorageLocation(location);
+            });
+
+            window.electronAPI.onDynamicFileChanged((data) => {
+                this.handleDynamicFileChange(data);
+            });
         }
+
+        // 初始化存储相关事件监听器
+        this.initializeStorageEventListeners();
+        this.setupModalHandlers();
+        this.loadCurrentStorageLocation();
     }
 
     async loadMockConfigs() {
@@ -102,23 +148,37 @@ class LocalProxyUI {
         }
     }
 
+    async loadServerStatuses() {
+        try {
+            const result = await window.electronAPI.mockServer.getStatuses();
+            if (result.success) {
+                this.serverStatuses = result.statuses || [];
+                this.renderServerStatuses();
+            }
+        } catch (error) {
+            console.error('Failed to load server statuses:', error);
+        }
+    }
+
     renderMockConfigList() {
         const configList = document.getElementById('mockConfigList');
         configList.innerHTML = this.mockConfigs.map(config => {
-            // 获取第一个路由的HTTP方法和路径
-            const route = config.routes && config.routes.length > 0 ? config.routes[0] : null;
-            const method = route ? route.method : 'N/A';
-            const path = route ? route.path : '无路径';
             const port = config.port || 'N/A';
-            const isDefault = route?.isDefault || false;
+            // 兼容单路由和多路由配置
+            const routes = config.routes || (config.route ? [config.route] : []);
+            const firstRoute = routes.length > 0 ? routes[0] : null;
+            const method = firstRoute ? firstRoute.method : 'N/A';
+            const path = firstRoute ? firstRoute.path : '无路径';
+            const isDefault = firstRoute?.isDefault || false;
 
             return `
-            <div class="config-item ${this.currentMockConfig?.id === config.id ? 'active' : ''}" 
+            <div class="config-item ${this.currentMockConfig?.id === config.id ? 'active' : ''}"
                  data-id="${config.id}">
                 <div class="config-item-info">
                     <div class="config-item-name">
                         ${this.escapeHtml(config.name)}
                         ${isDefault ? '<span class="default-badge">默认</span>' : ''}
+                        ${routes.length > 1 ? `<span class="route-count-badge">${routes.length}路由</span>` : ''}
                     </div>
                     <div class="config-item-description">${this.escapeHtml(config.description || '无描述')}</div>
                     <div class="config-item-details">
@@ -189,27 +249,38 @@ class LocalProxyUI {
         document.getElementById('mockPort').value = config.port;
         document.getElementById('mockProtocol').value = config.protocol;
 
-        // 加载第一个路由（简化处理）
-        if (config.routes && config.routes.length > 0) {
-            const route = config.routes[0];
-            document.getElementById('routeMethod').value = route.method;
-            document.getElementById('routePath').value = route.path;
-            document.getElementById('routeStatusCode').value = route.statusCode;
-            document.getElementById('routeDescription').value = route.description || '';
+        // 加载路由 - 兼容单路由和多路由配置
+        const routes = config.routes || (config.route ? [config.route] : []);
+        const firstRoute = routes.length > 0 ? routes[0] : null;
+
+        if (firstRoute) {
+            document.getElementById('routeMethod').value = firstRoute.method;
+            document.getElementById('routePath').value = firstRoute.path;
+            document.getElementById('routeStatusCode').value = firstRoute.statusCode;
+            document.getElementById('routeDescription').value = firstRoute.description || '';
 
             // 设置默认配置复选框
-            document.getElementById('setAsDefault').checked = route.isDefault || false;
+            document.getElementById('setAsDefault').checked = firstRoute.isDefault || false;
 
             // 加载响应头
-            this.loadHeaders(route.headers);
+            this.loadHeaders(firstRoute.headers || {});
 
             // 加载JSON body到文本区域
             const jsonBody = document.getElementById('jsonBody');
-            if (route.body && typeof route.body === 'object') {
-                jsonBody.value = JSON.stringify(route.body, null, 2);
+            if (firstRoute.body && typeof firstRoute.body === 'object') {
+                jsonBody.value = JSON.stringify(firstRoute.body, null, 2);
             } else {
                 jsonBody.value = '';
             }
+        } else {
+            // 如果没有路由，重置表单
+            document.getElementById('routeMethod').value = 'GET';
+            document.getElementById('routePath').value = '/';
+            document.getElementById('routeStatusCode').value = '200';
+            document.getElementById('routeDescription').value = '';
+            document.getElementById('setAsDefault').checked = false;
+            this.loadHeaders({});
+            document.getElementById('jsonBody').value = '';
         }
 
         document.getElementById('saveMockConfig').disabled = false;
@@ -241,7 +312,7 @@ class LocalProxyUI {
         document.getElementById('mockPort').value = '3000';
         document.getElementById('mockProtocol').value = 'http';
         document.getElementById('routeMethod').value = 'GET';
-        document.getElementById('routePath').value = '/api/test';
+        document.getElementById('routePath').value = '/';
         document.getElementById('routeStatusCode').value = '200';
         document.getElementById('routeDescription').value = '';
 
@@ -264,28 +335,50 @@ class LocalProxyUI {
         const config = this.buildMockConfig();
         if (!config) return;
 
+        console.log('Attempting to save mock config:', JSON.stringify(config, null, 2));
+
         try {
             const result = await window.electronAPI.config.saveMockServer(config);
+            console.log('Save mock config result from main process:', result);
+
             if (result.success) {
                 this.showMessage(result.message || '配置保存成功', 'success');
+                console.log('Config saved successfully, reloading configs...');
                 await this.loadMockConfigs();
-                this.currentMockConfig = config;
+
+                // 确保重新加载后正确设置当前配置
+                const savedConfig = this.mockConfigs.find(c => c.id === config.id);
+                if (savedConfig) {
+                    this.currentMockConfig = savedConfig;
+                } else {
+                    this.currentMockConfig = config;
+                }
+
                 this.renderMockConfigList();
+                console.log('Configs reloaded after save, current config:', this.currentMockConfig);
             } else {
+                console.error('Config save failed:', result.error);
                 this.showMessage(`配置保存失败: ${result.error}`, 'error');
             }
         } catch (error) {
+            console.error('Config save error:', error);
             this.showMessage(`配置保存失败: ${error}`, 'error');
         }
     }
 
     async deleteMockConfig(configId) {
-        if (!confirm('确定要删除这个配置吗？')) return;
+        const config = this.mockConfigs.find(c => c.id === configId);
+        if (!config) {
+            this.showMessage('配置不存在', 'error');
+            return;
+        }
+
+        if (!confirm(`确定要删除配置 "${config.name}" 吗？`)) return;
 
         try {
             const result = await window.electronAPI.config.deleteMockConfig(configId);
             if (result.success) {
-                this.showMessage('配置删除成功', 'success');
+                this.showMessage(`配置 "${config.name}" 删除成功`, 'success');
                 if (this.currentMockConfig?.id === configId) {
                     this.createNewMockConfig();
                 }
@@ -302,33 +395,46 @@ class LocalProxyUI {
         const config = this.mockConfigs.find(c => c.id === configId);
         if (!config) return;
 
-        // 获取当前配置的路由（假设第一个路由）
-        const currentRoute = config.routes[0];
-        if (!currentRoute) return;
+        // 兼容单路由和多路由配置
+        const routes = config.routes || (config.route ? [config.route] : []);
+        const firstRoute = routes.length > 0 ? routes[0] : null;
+        if (!firstRoute) return;
 
         const currentPort = config.port;
-        const currentMethod = currentRoute.method;
-        const currentPath = currentRoute.path;
+        const currentMethod = firstRoute.method;
+        const currentPath = firstRoute.path;
 
         try {
             // 更新所有配置中具有相同端口、方法和路径的路由的默认标记
             const updatedConfigs = this.mockConfigs.map(c => {
-                // 对于每个配置，我们只关心第一个路由
-                const route = c.routes[0];
-                if (!route) return c;
+                // 兼容单路由和多路由配置
+                const cRoutes = c.routes || (c.route ? [c.route] : []);
+                if (cRoutes.length === 0) return c;
 
                 // 如果端口、方法和路径与当前配置相同
-                if (c.port === currentPort && route.method === currentMethod && route.path === currentPath) {
-                    // 如果是当前配置，设置为默认，否则取消默认
+                if (c.port === currentPort) {
+                    // 更新所有路由的默认标记
+                    const updatedRoutes = cRoutes.map(route => {
+                        if (route.method === currentMethod && route.path === currentPath) {
+                            return {
+                                ...route,
+                                isDefault: c.id === configId
+                            };
+                        } else {
+                            return {
+                                ...route,
+                                isDefault: false
+                            };
+                        }
+                    });
+
+                    // 返回更新后的配置
                     return {
                         ...c,
-                        routes: [{
-                            ...route,
-                            isDefault: c.id === configId
-                        }]
+                        routes: updatedRoutes
                     };
                 } else {
-                    // 对于其他端口或路径，保持原样
+                    // 对于其他端口，保持原样
                     return c;
                 }
             });
@@ -353,10 +459,10 @@ class LocalProxyUI {
             // 只取消当前配置的默认标记
             const updatedConfig = {
                 ...config,
-                routes: config.routes.map(route => ({
-                    ...route,
+                route: {
+                    ...config.route,
                     isDefault: false
-                }))
+                }
             };
 
             await window.electronAPI.config.saveMockServer(updatedConfig);
@@ -488,69 +594,21 @@ class LocalProxyUI {
             return null;
         }
 
-        // 构建多个路由
-        const routes = this.buildRoutesConfig();
-        if (!routes || routes.length === 0) return null;
-
-        return {
-            id: this.currentMockConfig?.id || `mock_${Date.now()}`,
-            name,
-            description,
-            port,
-            protocol,
-            routes: routes,
-            createdAt: this.currentMockConfig?.createdAt || new Date(),
-            updatedAt: new Date()
-        };
-    }
-
-    buildRoutesConfig() {
-        // 构建当前表单中的路由
+        // 构建单个路由
         const route = this.buildRouteConfig();
         if (!route) return null;
 
-        const currentPort = parseInt(document.getElementById('mockPort').value);
-        const currentMethod = route.method;
-        const currentPath = route.path;
-        const isDefault = route.isDefault;
+        // 检查默认配置冲突
+        if (route.isDefault) {
+            const currentMethod = route.method;
+            const currentPath = route.path;
 
-        // 如果有现有配置，合并路由
-        if (this.currentMockConfig && this.currentMockConfig.routes) {
-            // 保留除当前编辑路由外的其他路由
-            const otherRoutes = this.currentMockConfig.routes.filter(r =>
-                r.id !== route.id && r.path !== route.path
-            );
-
-            // 检查默认配置冲突
-            if (isDefault) {
-                // 检查同一端口下同一路径是否已有默认配置
-                const existingDefault = this.mockConfigs.find(config => {
-                    if (config.port === currentPort && config.routes && config.routes.length > 0) {
-                        const configRoute = config.routes[0];
-                        return configRoute.method === currentMethod &&
-                            configRoute.path === currentPath &&
-                            configRoute.isDefault;
-                    }
-                    return false;
-                });
-
-                if (existingDefault && existingDefault.id !== this.currentMockConfig?.id) {
-                    this.showMessage(`同一端口下该API路径已有默认配置: ${existingDefault.name}`, 'error');
-                    return null;
-                }
-            }
-
-            return [...otherRoutes, route];
-        }
-
-        // 对于新配置，检查默认配置冲突
-        if (isDefault) {
             const existingDefault = this.mockConfigs.find(config => {
-                if (config.port === currentPort && config.routes && config.routes.length > 0) {
-                    const configRoute = config.routes[0];
-                    return configRoute.method === currentMethod &&
-                        configRoute.path === currentPath &&
-                        configRoute.isDefault;
+                if (config.port === port && config.route) {
+                    return config.route.method === currentMethod &&
+                        config.route.path === currentPath &&
+                        config.route.isDefault &&
+                        config.id !== this.currentMockConfig?.id;
                 }
                 return false;
             });
@@ -561,7 +619,16 @@ class LocalProxyUI {
             }
         }
 
-        return [route];
+        return {
+            id: this.currentMockConfig?.id || `mock_${Date.now()}`,
+            name,
+            description,
+            port,
+            protocol,
+            route: route,
+            createdAt: this.currentMockConfig?.createdAt || new Date(),
+            updatedAt: new Date()
+        };
     }
 
     buildRouteConfig() {
@@ -622,51 +689,9 @@ class LocalProxyUI {
     }
 
     async startMockServer() {
-        // 构建当前配置的路由
-        const currentRoute = this.buildRouteConfig();
-        if (!currentRoute) return;
-
-        // 合并所有配置的路由
-        const allRoutes = [];
-        this.mockConfigs.forEach(config => {
-            if (config.routes && config.routes.length > 0) {
-                allRoutes.push(config.routes[0]);
-            }
-        });
-
-        // 确保当前路由在合并后的路由数组中（如果当前配置是新的，可能还没有保存，所以需要添加）
-        // 但是，当前路由可能已经存在于allRoutes中（如果当前配置是已保存的），所以我们先检查是否已经存在
-        const existingIndex = allRoutes.findIndex(route => route.path === currentRoute.path && route.method === currentRoute.method);
-        if (existingIndex >= 0) {
-            // 替换已存在的路由
-            allRoutes[existingIndex] = currentRoute;
-        } else {
-            // 添加新路由
-            allRoutes.push(currentRoute);
-        }
-
-        // 构建配置
-        const name = document.getElementById('mockConfigName').value.trim();
-        const description = document.getElementById('mockConfigDescription').value.trim();
-        const portInput = document.getElementById('mockPort').value;
-        const protocol = document.getElementById('mockProtocol').value;
-
-        const port = parseInt(portInput);
-        if (isNaN(port) || port < 1 || port > 65535) {
-            this.showMessage('端口号必须在1-65535之间', 'error');
-            return;
-        }
-
-        const config = {
-            id: `mock_${Date.now()}`,
-            name,
-            description,
-            port,
-            protocol,
-            routes: allRoutes,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
+        // 构建当前配置
+        const config = this.buildMockConfig();
+        if (!config) return;
 
         try {
             const result = await window.electronAPI.mockServer.start(config);
@@ -694,6 +719,61 @@ class LocalProxyUI {
             }
         } catch (error) {
             this.showMessage(`停止模拟服务器失败: ${error}`, 'error');
+        }
+    }
+
+    async startAllMockServers() {
+        try {
+            const result = await window.electronAPI.mockServer.startAll();
+
+            if (result.success) {
+                this.showMessage(`成功启动 ${result.started.length} 个服务器，${result.failed.length} 个失败`, 'success');
+            } else {
+                this.showMessage(`批量启动失败：${result.started.length} 个成功，${result.failed.length} 个失败`, 'error');
+            }
+
+            // 显示端口冲突信息
+            if (result.portConflicts.length > 0) {
+                result.portConflicts.forEach(conflict => {
+                    this.showMessage(`端口冲突：${conflict}`, 'error');
+                });
+            }
+
+            // 显示失败详情
+            result.failed.forEach(failure => {
+                this.showMessage(`启动服务器 ${failure.id} 失败：${failure.error}`, 'error');
+            });
+
+        } catch (error) {
+            this.showMessage(`批量启动失败: ${error}`, 'error');
+        }
+    }
+
+    async stopAllMockServers() {
+        try {
+            const result = await window.electronAPI.mockServer.stop();
+            if (result.success) {
+                this.currentMockServer = null;
+                this.updateMockServerUI(false);
+                this.showMessage('所有模拟服务器已停止', 'info');
+            } else {
+                this.showMessage(`停止所有模拟服务器失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            this.showMessage(`停止所有模拟服务器失败: ${error}`, 'error');
+        }
+    }
+
+    async stopSingleServer(configId) {
+        try {
+            const result = await window.electronAPI.mockServer.stopServer(configId);
+            if (result.success) {
+                this.showMessage(`服务器 ${configId} 已停止`, 'info');
+            } else {
+                this.showMessage(`停止服务器 ${configId} 失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            this.showMessage(`停止服务器 ${configId} 失败: ${error}`, 'error');
         }
     }
 
@@ -1006,6 +1086,89 @@ class LocalProxyUI {
         }
     }
 
+    /**
+     * 渲染服务器状态列表
+     */
+    renderServerStatuses() {
+        const statusList = document.getElementById('serverStatusList');
+        if (!statusList) return;
+
+        statusList.innerHTML = this.serverStatuses.map(status => {
+            const isRunning = status.isRunning;
+            const statusClass = isRunning ? 'status-running' : 'status-stopped';
+            const statusText = isRunning ? '运行中' : '已停止';
+            const protocolText = status.protocol === 'https' ? 'HTTPS' : 'HTTP';
+
+            return `
+                <div class="server-status-item ${statusClass}" data-id="${status.id}">
+                    <div class="server-status-header">
+                        <div class="server-name">${this.escapeHtml(status.name)}</div>
+                        <div class="server-status ${statusClass}">${statusText}</div>
+                    </div>
+                    <div class="server-details">
+                        <div class="server-address">${protocolText}://localhost:${status.port}${status.config.route?.path || '/'}</div>
+                        <div class="server-method">${status.config.route?.method || 'GET'}</div>
+                    </div>
+                    <div class="server-actions">
+                        ${isRunning ?
+                    `<button class="btn btn-sm btn-danger stop-server" data-id="${status.id}">停止</button>` :
+                    `<button class="btn btn-sm btn-primary start-server" data-id="${status.id}">启动</button>`
+                }
+                        ${status.error ?
+                    `<div class="server-error">错误: ${this.escapeHtml(status.error)}</div>` :
+                    ''
+                }
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 添加事件监听
+        statusList.querySelectorAll('.start-server').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const configId = btn.getAttribute('data-id');
+                this.startSingleServer(configId);
+            });
+        });
+
+        statusList.querySelectorAll('.stop-server').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const configId = btn.getAttribute('data-id');
+                this.stopSingleServer(configId);
+            });
+        });
+    }
+
+    /**
+     * 更新单个服务器状态
+     */
+    updateServerStatus(updatedStatus) {
+        const index = this.serverStatuses.findIndex(status => status.id === updatedStatus.id);
+        if (index !== -1) {
+            this.serverStatuses[index] = updatedStatus;
+        } else {
+            this.serverStatuses.push(updatedStatus);
+        }
+    }
+
+    /**
+     * 启动单个服务器
+     */
+    async startSingleServer(configId) {
+        try {
+            const result = await window.electronAPI.mockServer.start({ id: configId });
+            if (result.success) {
+                this.showMessage(`服务器 ${configId} 启动成功`, 'success');
+            } else {
+                this.showMessage(`启动服务器 ${configId} 失败: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            this.showMessage(`启动服务器 ${configId} 失败: ${error}`, 'error');
+        }
+    }
+
     showMessage(message, type = 'info') {
         // 简单的消息提示实现
         console.log(`[${type.toUpperCase()}] ${message}`);
@@ -1051,6 +1214,803 @@ class LocalProxyUI {
                 }
             }, 300);
         }, 3000);
+    }
+
+    // ==================== 存储管理功能 ====================
+
+    /**
+     * 初始化存储相关事件监听器
+     */
+    initializeStorageEventListeners() {
+        // 导入配置
+        const importConfigBtn = document.getElementById('importConfig');
+        if (importConfigBtn) {
+            importConfigBtn.addEventListener('click', () => {
+                this.showImportModal();
+            });
+        }
+
+        // 导出配置
+        const exportConfigBtn = document.getElementById('exportConfig');
+        if (exportConfigBtn) {
+            exportConfigBtn.addEventListener('click', () => {
+                this.showExportModal();
+            });
+        }
+
+        // 导出选中配置 - 检查元素是否存在
+        const exportSelectedConfigBtn = document.getElementById('exportSelectedConfig');
+        if (exportSelectedConfigBtn) {
+            exportSelectedConfigBtn.addEventListener('click', () => {
+                this.exportSelectedConfig();
+            });
+        }
+
+        // 更改存储位置 - 检查元素是否存在
+        const changeStorageLocationBtn = document.getElementById('changeStorageLocation');
+        if (changeStorageLocationBtn) {
+            changeStorageLocationBtn.addEventListener('click', () => {
+                this.showStorageLocationModal();
+            });
+        }
+
+        // 动态文件加载 - 检查元素是否存在
+        const selectDynamicFileBtn = document.getElementById('selectDynamicFile');
+        const dynamicFileInput = document.getElementById('dynamicFileInput');
+        const loadDynamicFileBtn = document.getElementById('loadDynamicFile');
+        const watchDynamicFileBtn = document.getElementById('watchDynamicFile');
+
+        if (selectDynamicFileBtn && dynamicFileInput) {
+            selectDynamicFileBtn.addEventListener('click', () => {
+                dynamicFileInput.click();
+            });
+        }
+
+        if (dynamicFileInput) {
+            dynamicFileInput.addEventListener('change', (e) => {
+                this.handleDynamicFileSelect(e);
+            });
+        }
+
+        if (loadDynamicFileBtn) {
+            loadDynamicFileBtn.addEventListener('click', () => {
+                this.loadDynamicFile();
+            });
+        }
+
+        if (watchDynamicFileBtn) {
+            watchDynamicFileBtn.addEventListener('click', () => {
+                this.toggleFileWatching();
+            });
+        }
+
+        // 导入模态框事件 - 使用事件委托或检查元素是否存在
+        const importTypeRadios = document.querySelectorAll('input[name="importType"]');
+        if (importTypeRadios.length > 0) {
+            importTypeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    this.handleImportTypeChange(e.target.value);
+                });
+            });
+        }
+
+        const importFileInput = document.getElementById('importFileInput');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', (e) => {
+                this.handleImportFileSelect(e);
+            });
+        }
+
+        const fetchConfigBtn = document.getElementById('fetchConfig');
+        if (fetchConfigBtn) {
+            fetchConfigBtn.addEventListener('click', () => {
+                this.fetchConfigFromUrl();
+            });
+        }
+
+        const confirmImportBtn = document.getElementById('confirmImport');
+        if (confirmImportBtn) {
+            confirmImportBtn.addEventListener('click', () => {
+                this.confirmImport();
+            });
+        }
+
+        const cancelImportBtn = document.getElementById('cancelImport');
+        if (cancelImportBtn) {
+            cancelImportBtn.addEventListener('click', () => {
+                this.hideImportModal();
+            });
+        }
+
+        // 导出模态框事件
+        const exportScopeRadios = document.querySelectorAll('input[name="exportScope"]');
+        if (exportScopeRadios.length > 0) {
+            exportScopeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    this.handleExportScopeChange(e.target.value);
+                });
+            });
+        }
+
+        const copyExportBtn = document.getElementById('copyExport');
+        if (copyExportBtn) {
+            copyExportBtn.addEventListener('click', () => {
+                this.copyExportToClipboard();
+            });
+        }
+
+        const downloadExportBtn = document.getElementById('downloadExport');
+        if (downloadExportBtn) {
+            downloadExportBtn.addEventListener('click', () => {
+                this.downloadExport();
+            });
+        }
+
+        const saveExportBtn = document.getElementById('saveExport');
+        if (saveExportBtn) {
+            saveExportBtn.addEventListener('click', () => {
+                this.saveExportToLocation();
+            });
+        }
+
+        // 存储位置模态框事件
+        const storageLocationRadios = document.querySelectorAll('input[name="storageLocation"]');
+        if (storageLocationRadios.length > 0) {
+            storageLocationRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    this.handleStorageLocationChange(e.target.value);
+                });
+            });
+        }
+
+        const browseStoragePathBtn = document.getElementById('browseStoragePath');
+        if (browseStoragePathBtn) {
+            browseStoragePathBtn.addEventListener('click', () => {
+                this.browseStoragePath();
+            });
+        }
+
+        const confirmStorageLocationBtn = document.getElementById('confirmStorageLocation');
+        if (confirmStorageLocationBtn) {
+            confirmStorageLocationBtn.addEventListener('click', () => {
+                this.confirmStorageLocation();
+            });
+        }
+
+        const cancelStorageLocationBtn = document.getElementById('cancelStorageLocation');
+        if (cancelStorageLocationBtn) {
+            cancelStorageLocationBtn.addEventListener('click', () => {
+                this.hideStorageLocationModal();
+            });
+        }
+    }
+
+    /**
+     * 设置模态框处理器
+     */
+    setupModalHandlers() {
+        // 导入模态框
+        const importModal = document.getElementById('importModal');
+        const importClose = importModal.querySelector('.close');
+
+        importClose.addEventListener('click', () => {
+            this.hideImportModal();
+        });
+
+        // 导出模态框
+        const exportModal = document.getElementById('exportModal');
+        const exportClose = exportModal.querySelector('.close');
+
+        exportClose.addEventListener('click', () => {
+            this.hideExportModal();
+        });
+
+        // 存储位置模态框
+        const storageModal = document.getElementById('storageLocationModal');
+        const storageClose = storageModal.querySelector('.close');
+
+        storageClose.addEventListener('click', () => {
+            this.hideStorageLocationModal();
+        });
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', (event) => {
+            if (event.target === importModal) {
+                this.hideImportModal();
+            }
+            if (event.target === exportModal) {
+                this.hideExportModal();
+            }
+            if (event.target === storageModal) {
+                this.hideStorageLocationModal();
+            }
+        });
+    }
+
+    /**
+     * 加载当前存储位置
+     */
+    async loadCurrentStorageLocation() {
+        try {
+            if (window.electronAPI && window.electronAPI.storage) {
+                const result = await window.electronAPI.storage.getCurrentLocation();
+                if (result.success) {
+                    this.updateCurrentStorageLocation(result.location);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load current storage location:', error);
+        }
+    }
+
+    /**
+     * 更新当前存储位置显示
+     */
+    updateCurrentStorageLocation(location) {
+        const storagePathElement = document.getElementById('currentStoragePath');
+        if (storagePathElement && location) {
+            storagePathElement.textContent = location.path || '默认位置';
+            if (location.isDefault) {
+                storagePathElement.textContent += ' (默认)';
+            }
+        }
+    }
+
+    /**
+     * 处理动态文件选择
+     */
+    handleDynamicFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('selectedFileName').textContent = file.name;
+            document.getElementById('loadDynamicFile').disabled = false;
+            document.getElementById('watchDynamicFile').disabled = false;
+        }
+    }
+
+    /**
+     * 加载动态文件
+     */
+    async loadDynamicFile() {
+        const fileInput = document.getElementById('dynamicFileInput');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        try {
+            const fileStatus = document.getElementById('dynamicFileStatus');
+            fileStatus.textContent = '正在加载文件...';
+            fileStatus.className = 'file-status info';
+
+            // 这里需要调用后端API来加载动态文件
+            if (window.electronAPI && window.electronAPI.storage) {
+                const result = await window.electronAPI.storage.loadDynamicFile(file.path);
+                if (result.success) {
+                    fileStatus.textContent = '文件加载成功';
+                    fileStatus.className = 'file-status success';
+                    this.showMessage('动态文件加载成功', 'success');
+                } else {
+                    fileStatus.textContent = `加载失败: ${result.error}`;
+                    fileStatus.className = 'file-status error';
+                }
+            }
+        } catch (error) {
+            const fileStatus = document.getElementById('dynamicFileStatus');
+            fileStatus.textContent = `加载失败: ${error.message}`;
+            fileStatus.className = 'file-status error';
+        }
+    }
+
+    /**
+     * 切换文件监控
+     */
+    async toggleFileWatching() {
+        const fileInput = document.getElementById('dynamicFileInput');
+        const file = fileInput.files[0];
+        const watchButton = document.getElementById('watchDynamicFile');
+
+        if (!file) return;
+
+        try {
+            if (window.electronAPI && window.electronAPI.storage) {
+                const isWatching = watchButton.textContent === '停止监控';
+
+                if (isWatching) {
+                    const result = await window.electronAPI.storage.unwatchFile(file.path);
+                    if (result.success) {
+                        watchButton.textContent = '监控文件变化';
+                        watchButton.className = 'btn btn-warning';
+                        this.showMessage('已停止监控文件变化', 'info');
+                    }
+                } else {
+                    const result = await window.electronAPI.storage.watchFile(file.path);
+                    if (result.success) {
+                        watchButton.textContent = '停止监控';
+                        watchButton.className = 'btn btn-danger';
+                        this.showMessage('开始监控文件变化', 'success');
+                    }
+                }
+            }
+        } catch (error) {
+            this.showMessage(`文件监控操作失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 处理动态文件变化
+     */
+    handleDynamicFileChange(data) {
+        this.showMessage(`动态文件已更新: ${data.filePath}`, 'info');
+        // 可以在这里重新加载配置或更新UI
+    }
+
+    /**
+     * 显示导入模态框
+     */
+    showImportModal() {
+        document.getElementById('importModal').style.display = 'block';
+        this.resetImportModal();
+    }
+
+    /**
+     * 隐藏导入模态框
+     */
+    hideImportModal() {
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    /**
+     * 重置导入模态框
+     */
+    resetImportModal() {
+        document.getElementById('importFileInput').value = '';
+        document.getElementById('importUrl').value = '';
+        document.getElementById('importPreview').style.display = 'none';
+        document.getElementById('importFileInfo').textContent = '';
+    }
+
+    /**
+     * 处理导入类型变化
+     */
+    handleImportTypeChange(type) {
+        if (type === 'file') {
+            document.getElementById('fileImportSection').style.display = 'block';
+            document.getElementById('urlImportSection').style.display = 'none';
+        } else {
+            document.getElementById('fileImportSection').style.display = 'none';
+            document.getElementById('urlImportSection').style.display = 'block';
+        }
+    }
+
+    /**
+     * 处理导入文件选择
+     */
+    handleImportFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('importFileInfo').textContent = `已选择文件: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            this.previewImportFile(file);
+        }
+    }
+
+    /**
+     * 预览导入文件
+     */
+    previewImportFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const content = JSON.parse(e.target.result);
+                document.getElementById('previewContent').textContent = JSON.stringify(content, null, 2);
+                document.getElementById('importPreview').style.display = 'block';
+            } catch (error) {
+                document.getElementById('importFileInfo').textContent += ' - JSON格式无效';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    /**
+     * 从URL获取配置
+     */
+    async fetchConfigFromUrl() {
+        const url = document.getElementById('importUrl').value;
+        if (!url) {
+            this.showMessage('请输入URL', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const content = await response.json();
+            document.getElementById('previewContent').textContent = JSON.stringify(content, null, 2);
+            document.getElementById('importPreview').style.display = 'block';
+        } catch (error) {
+            this.showMessage(`获取配置失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 确认导入
+     */
+    async confirmImport() {
+        const importType = document.querySelector('input[name="importType"]:checked').value;
+        let importData;
+
+        try {
+            if (importType === 'file') {
+                const file = document.getElementById('importFileInput').files[0];
+                if (!file) {
+                    this.showMessage('请选择文件', 'error');
+                    return;
+                }
+                const text = await this.readFileAsText(file);
+                importData = JSON.parse(text);
+            } else {
+                const previewContent = document.getElementById('previewContent').textContent;
+                importData = JSON.parse(previewContent);
+            }
+
+            // 调用后端API导入配置
+            if (window.electronAPI && window.electronAPI.storage) {
+                const result = await window.electronAPI.storage.importConfig(importData);
+                if (result.success) {
+                    // 显示导入成功详情
+                    const importResult = result.result;
+                    let successMessage = `配置导入成功 (模拟服务器: ${importResult.importedCount.mockServers} 个, 代理服务器: ${importResult.importedCount.proxyServers} 个)`;
+
+                    // 如果有警告，显示警告信息
+                    if (importResult.warnings && importResult.warnings.length > 0) {
+                        successMessage += `\\n警告: ${importResult.warnings.join('; ')}`;
+                    }
+
+                    this.showMessage(successMessage, 'success');
+                    this.hideImportModal();
+
+                    // 保存导入的配置到配置管理器
+                    if (importResult.importedConfig && importResult.importedConfig.mockServers) {
+                        for (const serverConfig of importResult.importedConfig.mockServers) {
+                            // 迁移单路由到多路由格式
+                            const migratedConfig = this.migrateServerConfig(serverConfig);
+                            await window.electronAPI.config.saveMockServer(migratedConfig);
+                        }
+                    }
+
+                    // 重新加载配置列表和服务器状态
+                    await this.loadMockConfigs();
+                    await this.loadServerStatuses();
+
+                    // 自动启动所有导入的模拟服务器
+                    if (importResult.importedCount.mockServers > 0) {
+                        this.showMessage(`正在自动启动 ${importResult.importedCount.mockServers} 个模拟服务器...`, 'info');
+                        await this.startAllMockServers();
+                    }
+                } else {
+                    // 显示详细的错误信息
+                    let errorMessage = '导入失败';
+                    if (result.details) {
+                        const details = result.details;
+                        if (details.errors && details.errors.length > 0) {
+                            errorMessage += `: ${details.errors.join('; ')}`;
+                        }
+                        if (details.warnings && details.warnings.length > 0) {
+                            errorMessage += `\\n警告: ${details.warnings.join('; ')}`;
+                        }
+                        if (details.importedCount) {
+                            errorMessage += `\\n已导入: 模拟服务器 ${details.importedCount.mockServers} 个, 代理服务器 ${details.importedCount.proxyServers} 个`;
+                        }
+                    } else if (result.error) {
+                        errorMessage += `: ${result.error}`;
+                    }
+                    this.showMessage(errorMessage, 'error');
+                }
+            }
+        } catch (error) {
+            this.showMessage(`导入失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 读取文件为文本
+     */
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    /**
+     * 迁移服务器配置（从单路由到多路由）
+     */
+    migrateServerConfig(serverConfig) {
+        // 如果已经有routes字段，说明已经是新版本配置
+        if (serverConfig.routes && Array.isArray(serverConfig.routes)) {
+            return serverConfig;
+        }
+
+        // 如果有route字段，说明是旧版本配置，需要迁移
+        if (serverConfig.route) {
+            console.log(`迁移配置: ${serverConfig.name} (从单路由到多路由)`);
+            return {
+                ...serverConfig,
+                routes: [serverConfig.route]
+            };
+        }
+
+        // 如果既没有route也没有routes，创建一个默认路由
+        console.log(`为配置 ${serverConfig.name} 创建默认路由`);
+        return {
+            ...serverConfig,
+            routes: [{
+                id: `${serverConfig.id}_default_route`,
+                path: '/',
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                body: { message: 'Default response from migrated server' },
+                statusCode: 200,
+                description: '默认路由（由系统自动创建）',
+                isDefault: true
+            }]
+        };
+    }
+
+    /**
+     * 显示导出模态框
+     */
+    showExportModal() {
+        document.getElementById('exportModal').style.display = 'block';
+        this.updateExportPreview();
+    }
+
+    /**
+     * 隐藏导出模态框
+     */
+    hideExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+    }
+
+    /**
+     * 处理导出范围变化
+     */
+    handleExportScopeChange(scope) {
+        this.updateExportPreview();
+    }
+
+    /**
+     * 更新导出预览
+     */
+    async updateExportPreview() {
+        try {
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+            const format = document.getElementById('exportFormat').value;
+
+            let exportData;
+
+            if (scope === 'all') {
+                // 导出所有配置
+                if (window.electronAPI && window.electronAPI.storage) {
+                    const result = await window.electronAPI.storage.exportConfig({ scope: 'all', format });
+                    if (result.success) {
+                        exportData = result.data;
+                    }
+                }
+            } else if (scope === 'selected') {
+                // 导出选中配置
+                if (this.currentMockConfig) {
+                    if (window.electronAPI && window.electronAPI.storage) {
+                        const result = await window.electronAPI.storage.exportConfig({
+                            scope: 'selected',
+                            configIds: [this.currentMockConfig.id],
+                            format
+                        });
+                        if (result.success) {
+                            exportData = result.data;
+                        }
+                    }
+                }
+            } else if (scope === 'current') {
+                // 导出当前配置
+                if (this.currentMockConfig) {
+                    exportData = this.currentMockConfig;
+                }
+            }
+
+            if (exportData) {
+                const previewContent = format === 'json'
+                    ? JSON.stringify(exportData, null, 2)
+                    : this.convertToYaml(exportData);
+                document.getElementById('exportPreviewContent').textContent = previewContent;
+            }
+        } catch (error) {
+            console.error('Failed to update export preview:', error);
+        }
+    }
+
+    /**
+     * 转换为YAML格式
+     */
+    convertToYaml(obj) {
+        // 简化的YAML转换，实际应用中可以使用专门的YAML库
+        function convertValue(value, indent = '') {
+            if (typeof value === 'object' && value !== null) {
+                if (Array.isArray(value)) {
+                    return value.map(item => `${indent}- ${convertValue(item, indent + '  ')}`).join('\n');
+                } else {
+                    return Object.entries(value).map(([key, val]) => {
+                        return `${indent}${key}: ${convertValue(val, indent + '  ')}`;
+                    }).join('\n');
+                }
+            } else {
+                return String(value);
+            }
+        }
+        return convertValue(obj);
+    }
+
+    /**
+     * 复制导出内容到剪贴板
+     */
+    async copyExportToClipboard() {
+        const content = document.getElementById('exportPreviewContent').textContent;
+        try {
+            await navigator.clipboard.writeText(content);
+            this.showMessage('已复制到剪贴板', 'success');
+        } catch (error) {
+            this.showMessage('复制失败', 'error');
+        }
+    }
+
+    /**
+     * 下载导出文件
+     */
+    downloadExport() {
+        const content = document.getElementById('exportPreviewContent').textContent;
+        const format = document.getElementById('exportFormat').value;
+        const scope = document.querySelector('input[name="exportScope"]:checked').value;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `config-export-${scope}-${Date.now()}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        this.showMessage('文件已下载', 'success');
+    }
+
+    /**
+     * 保存导出到指定位置
+     */
+    async saveExportToLocation() {
+        try {
+            const content = document.getElementById('exportPreviewContent').textContent;
+            const format = document.getElementById('exportFormat').value;
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+
+            if (window.electronAPI && window.electronAPI.storage) {
+                const result = await window.electronAPI.storage.saveExport({
+                    content,
+                    format,
+                    scope,
+                    filename: `config-export-${scope}-${Date.now()}.${format}`
+                });
+
+                if (result.success) {
+                    this.showMessage('配置已保存到指定位置', 'success');
+                    this.hideExportModal();
+                } else {
+                    this.showMessage(`保存失败: ${result.error}`, 'error');
+                }
+            }
+        } catch (error) {
+            this.showMessage(`保存失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 导出选中配置
+     */
+    exportSelectedConfig() {
+        if (!this.currentMockConfig) {
+            this.showMessage('请先选择一个配置', 'error');
+            return;
+        }
+        this.showExportModal();
+        // 设置为导出选中配置
+        document.querySelector('input[name="exportScope"][value="selected"]').checked = true;
+        this.updateExportPreview();
+    }
+
+    /**
+     * 显示存储位置模态框
+     */
+    showStorageLocationModal() {
+        document.getElementById('storageLocationModal').style.display = 'block';
+    }
+
+    /**
+     * 隐藏存储位置模态框
+     */
+    hideStorageLocationModal() {
+        document.getElementById('storageLocationModal').style.display = 'none';
+    }
+
+    /**
+     * 处理存储位置变化
+     */
+    handleStorageLocationChange(locationType) {
+        if (locationType === 'custom') {
+            document.getElementById('customLocationSection').style.display = 'block';
+        } else {
+            document.getElementById('customLocationSection').style.display = 'none';
+        }
+    }
+
+    /**
+     * 浏览存储路径
+     */
+    async browseStoragePath() {
+        try {
+            if (window.electronAPI && window.electronAPI.storage) {
+                const result = await window.electronAPI.storage.browsePath();
+                if (result.success && result.path) {
+                    document.getElementById('customStoragePath').value = result.path;
+                }
+            }
+        } catch (error) {
+            this.showMessage(`浏览路径失败: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * 确认存储位置
+     */
+    async confirmStorageLocation() {
+        const locationType = document.querySelector('input[name="storageLocation"]:checked').value;
+        const migrateData = document.getElementById('migrateExistingData').checked;
+
+        try {
+            if (window.electronAPI && window.electronAPI.storage) {
+                let result;
+
+                if (locationType === 'default') {
+                    result = await window.electronAPI.storage.setLocation('default');
+                } else {
+                    const customPath = document.getElementById('customStoragePath').value;
+                    if (!customPath) {
+                        this.showMessage('请输入自定义路径', 'error');
+                        return;
+                    }
+                    result = await window.electronAPI.storage.setLocation(customPath);
+                }
+
+                if (result.success) {
+                    if (migrateData) {
+                        const migrateResult = await window.electronAPI.storage.migrateData(result.location);
+                        if (migrateResult.success) {
+                            this.showMessage('存储位置已更改且数据已迁移', 'success');
+                        } else {
+                            this.showMessage('存储位置已更改但数据迁移失败', 'warning');
+                        }
+                    } else {
+                        this.showMessage('存储位置已更改', 'success');
+                    }
+                    this.hideStorageLocationModal();
+                    await this.loadCurrentStorageLocation();
+                } else {
+                    this.showMessage(`更改存储位置失败: ${result.error}`, 'error');
+                }
+            }
+        } catch (error) {
+            this.showMessage(`更改存储位置失败: ${error.message}`, 'error');
+        }
     }
 }
 

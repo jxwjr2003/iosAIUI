@@ -1,5 +1,5 @@
 {
-  "name": "localproxy",
+  "name": "proxy_V2",
   "version": "1.0.0",
   "description": "LocalProxy - 基于 Electron 的代理服务器和模拟服务器管理工具",
   "main": "dist/main.js",
@@ -28,8 +28,8 @@
     "typescript": "^5.0.0"
   },
   "build": {
-    "appId": "com.example.localproxy",
-    "productName": "LocalProxy",
+    "appId": "com.example.proxy_V2",
+    "productName": "proxy_V2",
     "directories": {
       "output": "release"
     },

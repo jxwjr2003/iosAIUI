@@ -107,7 +107,8 @@
 /* 主内容区域 - 现代化设计 */
 .main-content {
     display: flex;
-    flex: 1;
+    flex: 0.8;
+    /* 调整为80%高度 */
     overflow: hidden;
     gap: 1px;
     background: var(--color-border);
@@ -2532,5 +2533,473 @@
     .btn-secondary:hover {
         background: var(--color-gray-300);
         border-color: var(--color-gray-500);
+    }
+}
+
+/* 底部：文件浏览器 (20%) - 现代化设计 */
+.file-browser-panel {
+    flex: 0.2;
+    /* 20%高度 */
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.file-browser-panel .panel-header {
+    background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-white) 100%);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-3) var(--space-4);
+}
+
+.file-browser-panel .panel-header h2::before {
+    content: "📁";
+}
+
+.file-browser-panel .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.file-status {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 120px;
+    justify-content: center;
+}
+
+.file-status-unsaved {
+    background: var(--color-error-light);
+    color: var(--color-error-dark);
+    border: 1px solid var(--color-error);
+    animation: pulse 2s infinite;
+}
+
+.file-status-saving {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    border: 1px solid var(--color-warning);
+}
+
+.file-status-saved {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+    border: 1px solid var(--color-success);
+}
+
+.file-browser-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--color-surface);
+}
+
+.path-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-gray-50);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    flex-wrap: wrap;
+    min-height: 44px;
+}
+
+.breadcrumb-item {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.breadcrumb-item:hover {
+    background: var(--color-gray-200);
+    color: var(--color-text-primary);
+}
+
+.breadcrumb-item::after {
+    content: "›";
+    margin-left: var(--space-2);
+    color: var(--color-text-tertiary);
+}
+
+.breadcrumb-item:last-child::after {
+    content: none;
+}
+
+.file-tree-container {
+    flex: 1;
+    overflow: auto;
+    padding: var(--space-3);
+    background: var(--color-surface);
+}
+
+.file-tree {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-tight);
+}
+
+.file-tree-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+    text-align: center;
+    padding: var(--space-6);
+}
+
+.file-tree-empty::before {
+    content: "📁";
+    font-size: 32px;
+    margin-bottom: var(--space-3);
+    opacity: 0.5;
+}
+
+/* 文件树节点样式 */
+.file-node {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    margin: 1px 0;
+    border-radius: var(--radius-base);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.05), transparent);
+    transition: left var(--transition-slow);
+}
+
+.file-node:hover {
+    background: var(--color-gray-50);
+    border-color: var(--color-primary-light);
+    transform: translateX(2px);
+}
+
+.file-node:hover::before {
+    left: 100%;
+}
+
+.file-node.selected {
+    background: var(--color-primary) !important;
+    color: var(--color-white);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.file-node.selected .file-icon {
+    color: var(--color-white);
+}
+
+.file-node.selected .file-name {
+    color: var(--color-white);
+}
+
+.file-node.selected .file-size {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.file-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+}
+
+.file-name {
+    flex: 1;
+    font-weight: var(--font-weight-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+}
+
+.file-size {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.file-actions {
+    display: flex;
+    gap: var(--space-1);
+    margin-left: var(--space-2);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.file-node:hover .file-actions {
+    opacity: 1;
+}
+
+.file-action-btn {
+    padding: var(--space-1);
+    border: none;
+    background: var(--color-gray-200);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    min-height: 20px;
+}
+
+.file-action-btn:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+    transform: scale(1.1);
+}
+
+.file-node.selected .file-action-btn {
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--color-white);
+}
+
+.file-node.selected .file-action-btn:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 文件夹节点样式 */
+.folder-node {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    margin: 1px 0;
+    border-radius: var(--radius-base);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-white) 100%);
+}
+
+.folder-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 122, 255, 0.05), transparent);
+    transition: left var(--transition-slow);
+}
+
+.folder-node:hover {
+    background: var(--color-gray-100);
+    border-color: var(--color-primary-light);
+    transform: translateX(2px);
+}
+
+.folder-node:hover::before {
+    left: 100%;
+}
+
+.folder-node.expanded {
+    background: var(--color-gray-100);
+}
+
+.folder-toggle {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--color-text-tertiary);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.folder-toggle:hover {
+    background: var(--color-gray-200);
+    color: var(--color-text-primary);
+}
+
+.folder-toggle.expanded::before {
+    content: '▼';
+    font-size: 10px;
+}
+
+.folder-toggle.collapsed::before {
+    content: '▶';
+    font-size: 10px;
+}
+
+.folder-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-warning);
+    font-size: var(--font-size-sm);
+}
+
+.folder-name {
+    flex: 1;
+    font-weight: var(--font-weight-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+}
+
+.folder-children {
+    margin-left: var(--space-4);
+    border-left: 1px solid var(--color-border);
+    padding-left: var(--space-2);
+    transition: all var(--transition-base);
+}
+
+.folder-children.hidden {
+    display: none;
+}
+
+.folder-children.visible {
+    display: block;
+}
+
+/* 深色模式下的文件浏览器 */
+@media (prefers-color-scheme: dark) {
+    .file-browser-panel .panel-header {
+        background: linear-gradient(135deg, var(--color-gray-100) 0%, var(--color-surface) 100%);
+    }
+
+    .path-breadcrumb {
+        background: var(--color-gray-100);
+        color: var(--color-text-secondary);
+    }
+
+    .breadcrumb-item:hover {
+        background: var(--color-gray-300);
+        color: var(--color-text-primary);
+    }
+
+    .file-tree-empty {
+        color: var(--color-text-tertiary);
+    }
+
+    .file-node:hover {
+        background: var(--color-gray-200);
+    }
+
+    .folder-node {
+        background: linear-gradient(135deg, var(--color-gray-100) 0%, var(--color-surface) 100%);
+    }
+
+    .folder-node:hover {
+        background: var(--color-gray-200);
+    }
+
+    .folder-node.expanded {
+        background: var(--color-gray-200);
+    }
+}
+
+/* 文件浏览器响应式设计 */
+@media (max-width: 768px) {
+    .file-browser-panel .panel-header {
+        flex-direction: column;
+        gap: var(--space-2);
+        align-items: flex-start;
+    }
+
+    .file-browser-panel .panel-actions {
+        align-self: flex-end;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .file-status {
+        min-width: 100px;
+    }
+
+    .path-breadcrumb {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-xs);
+    }
+
+    .file-tree-container {
+        padding: var(--space-2);
+    }
+
+    .file-node,
+    .folder-node {
+        padding: var(--space-2);
+    }
+
+    .file-actions {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .file-browser-panel .panel-header {
+        padding: var(--space-2);
+    }
+
+    .file-browser-panel .panel-actions {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .file-status {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .path-breadcrumb {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-1);
+    }
+
+    .breadcrumb-item::after {
+        content: none;
     }
 }

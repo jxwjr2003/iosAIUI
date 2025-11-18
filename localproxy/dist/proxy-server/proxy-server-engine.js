@@ -78,6 +78,16 @@ class ProxyServerEngine extends events_1.EventEmitter {
             // 读取请求体
             const body = await this.readRequestBody(req);
             proxyRequest.body = body;
+            // 在控制台打印请求数据
+            console.log(`[${proxyRequest.timestamp.toISOString()}] [PROXY REQUEST] ${proxyRequest.method} ${proxyRequest.url}`);
+            console.log(`- 请求ID: ${proxyRequest.id}`);
+            console.log(`- 方法: ${proxyRequest.method}`);
+            console.log(`- URL: ${proxyRequest.url}`);
+            console.log(`- 请求头:`, JSON.stringify(proxyRequest.headers, null, 2));
+            if (body) {
+                console.log(`- 请求体:`, body);
+            }
+            console.log('---');
             this.emit('requestReceived', proxyRequest);
             // 转发请求到目标服务器
             const targetUrl = new URL(this.currentConfig.target);
@@ -118,6 +128,15 @@ class ProxyServerEngine extends events_1.EventEmitter {
                         headers: this.parseHeaders(proxyRes.headers),
                         body: responseBody
                     };
+                    // 在控制台打印响应数据
+                    console.log(`[${proxyResponse.timestamp.toISOString()}] [PROXY RESPONSE] ${proxyResponse.statusCode} for ${proxyRequest.method} ${proxyRequest.url}`);
+                    console.log(`- 请求ID: ${proxyResponse.id}`);
+                    console.log(`- 状态码: ${proxyResponse.statusCode}`);
+                    console.log(`- 响应头:`, JSON.stringify(proxyResponse.headers, null, 2));
+                    if (responseBody) {
+                        console.log(`- 响应体:`, responseBody);
+                    }
+                    console.log('---');
                     this.emit('responseSent', { request: proxyRequest, response: proxyResponse });
                 });
             });
@@ -180,4 +199,3 @@ class ProxyServerEngine extends events_1.EventEmitter {
     }
 }
 exports.ProxyServerEngine = ProxyServerEngine;
-//# sourceMappingURL=proxy-server-engine.js.map

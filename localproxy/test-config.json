@@ -1,0 +1,31 @@
+{
+  "mockServers": [
+    {
+      "id": "test-server-1",
+      "name": "测试服务器",
+      "port": 3000,
+      "protocol": "http",
+      "routes": [
+        {
+          "id": "route-1",
+          "path": "/api/test",
+          "method": "GET",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "message": "Hello from test"
+          },
+          "statusCode": 200,
+          "description": "测试路由"
+        }
+      ]
+    }
+  ],
+  "proxyServers": [],
+  "settings": {
+    "autoStart": false,
+    "logRetentionDays": 7,
+    "maxLogEntries": 1000
+  }
+}

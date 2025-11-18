@@ -9,6 +9,7 @@
     <title>iOS UI Editor</title>
     <link rel="stylesheet" href="src/styles/main.css">
     <link rel="stylesheet" href="src/styles/property-editor.css">
+    <link rel="stylesheet" href="src/styles/file-browser.css">
 </head>
 
 <body>
@@ -19,8 +20,7 @@
                 <h1 class="app-title">iOS UI Editor</h1>
             </div>
             <div class="header-center">
-                <button id="import-btn" class="toolbar-btn">导入JSON</button>
-                <button id="export-btn" class="toolbar-btn">导出JSON</button>
+                <button id="save-as-btn" class="toolbar-btn">另存为</button>
                 <button id="view-json-btn" class="toolbar-btn">查看JSON内容</button>
                 <button id="new-root-btn" class="toolbar-btn">新建根节点</button>
             </div>
@@ -183,19 +183,38 @@
             </section>
         </main>
 
-        <!-- 底部：AI 聊天助手 -->
-        <section class="ai-chat-panel">
+        <!-- 底部：文件浏览器 (20%) -->
+        <footer class="file-browser-panel">
             <div class="panel-header">
-                <h2>AI 聊天助手</h2>
+                <h2>文件浏览器</h2>
                 <div class="panel-actions">
-                    <button id="ai-config-btn" class="icon-btn" title="AI配置">⚙️</button>
-                    <button id="clear-chat-btn" class="icon-btn" title="清空聊天">🗑️</button>
+                    <button id="select-folder-btn" class="toolbar-btn">选择文件夹</button>
+                    <button id="refresh-files-btn" class="icon-btn" title="刷新文件列表">🔄</button>
+                    <div id="file-status" class="file-status file-status-saved">
+                        <span class="status-text">文件已保存</span>
+                    </div>
                 </div>
             </div>
-            <div id="ai-chat-container" class="ai-chat-container">
-                <!-- AI聊天助手将在这里动态生成界面 -->
+            <div class="panel-content">
+                <div class="file-browser-container">
+                    <!-- 路径导航面包屑 -->
+                    <div id="path-breadcrumb" class="path-breadcrumb">
+                        <span class="breadcrumb-item">请选择文件夹</span>
+                    </div>
+
+                    <!-- 文件夹和文件列表 -->
+                    <div class="file-tree-container">
+                        <div id="file-tree" class="file-tree">
+                            <!-- 文件夹和文件将在这里动态生成 -->
+                            <div class="file-tree-empty">
+                                <p>请选择文档文件夹开始浏览</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </section>
+        </footer>
+
     </div>
 
 
@@ -229,11 +248,18 @@
     <script src="src/managers/MemberVariableManager.js"></script>
     <script src="src/managers/FunctionManager.js"></script>
     <script src="src/managers/ProtocolManager.js"></script>
+
+    <!-- 模拟器模块化组件 -->
+    <script src="src/components/DeviceManager.js"></script>
+    <script src="src/components/NodeRenderer.js"></script>
+    <script src="src/components/StyleApplicator.js"></script>
+    <script src="src/components/ConstraintApplier.js"></script>
+
     <script src="src/components/treeEditor.js"></script>
     <script src="src/components/simulator.js"></script>
     <script src="src/components/propertyEditor.js"></script>
-    <script src="src/components/aiChatAssistant.js"></script>
     <script src="src/components/jsonViewer.js"></script>
+    <script src="src/components/FileBrowser.js"></script>
     <script src="src/services/dataService.js"></script>
     <script src="src/app.js"></script>
 </body>

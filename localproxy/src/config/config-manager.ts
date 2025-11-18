@@ -40,20 +40,26 @@ export class ConfigManager {
             const configData = await fs.readFile(this.configPath, 'utf-8');
             const loadedConfig = JSON.parse(configData);
 
+            // 迁移旧版配置（单路由到多路由）
+            const migratedConfig = this.migrateLegacyConfig(loadedConfig);
+
             // 合并默认配置和加载的配置
             this.config = {
                 ...this.getDefaultConfig(),
-                ...loadedConfig,
+                ...migratedConfig,
                 settings: {
                     ...this.getDefaultConfig().settings,
-                    ...loadedConfig.settings
+                    ...migratedConfig.settings
                 }
             };
 
+            console.log('Config loaded successfully from:', this.configPath);
+            console.log('Loaded config content:', JSON.stringify(this.config, null, 2));
             return this.config;
         } catch (error) {
             // 如果文件不存在或读取失败，返回默认配置
             console.log('Config file not found, using default config');
+            console.log('Config path that was attempted:', this.configPath);
             return this.config;
         }
     }
@@ -76,8 +82,14 @@ export class ConfigManager {
 
             // 写入配置文件
             await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8');
+
+            // 添加详细日志
+            console.log('Config saved successfully to:', this.configPath);
+            console.log('Config content:', JSON.stringify(this.config, null, 2));
         } catch (error) {
             console.error('Failed to save config:', error);
+            console.error('Config path:', this.configPath);
+            console.error('Config content that failed to save:', JSON.stringify(this.config, null, 2));
             throw error;
         }
     }
@@ -87,10 +99,11 @@ export class ConfigManager {
         const existingIndex = this.config.mockServers.findIndex(server => server.name === config.name);
 
         // 检查是否有默认配置冲突（相同端口和路径只能有一个默认配置）
-        if (config.routes.some(route => route.isDefault)) {
-            const defaultRoute = config.routes.find(route => route.isDefault);
-            if (defaultRoute) {
-                // 查找相同端口和路径的其他默认配置
+        // 注意：现在每个路由都有自己的isDefault属性
+        const defaultRoutes = config.routes.filter(route => route.isDefault);
+        if (defaultRoutes.length > 0) {
+            // 对于每个默认路由，检查冲突
+            for (const defaultRoute of defaultRoutes) {
                 const conflictingDefault = this.config.mockServers.find(server =>
                     server.port === config.port &&
                     server.id !== config.id && // 排除自身
@@ -101,15 +114,20 @@ export class ConfigManager {
                 );
 
                 if (conflictingDefault) {
-                    // 自动取消其他配置的默认状态
+                    // 自动取消其他配置中相同路径的默认状态
                     this.config.mockServers = this.config.mockServers.map(server => {
                         if (server.id === conflictingDefault.id) {
                             return {
                                 ...server,
-                                routes: server.routes.map(route => ({
-                                    ...route,
-                                    isDefault: false
-                                }))
+                                routes: server.routes.map(route => {
+                                    if (route.path === defaultRoute.path && route.isDefault) {
+                                        return {
+                                            ...route,
+                                            isDefault: false
+                                        };
+                                    }
+                                    return route;
+                                })
                             };
                         }
                         return server;
@@ -196,5 +214,49 @@ export class ConfigManager {
 
     public getConfigPath(): string {
         return this.configPath;
+    }
+
+    /**
+     * 迁移旧版配置（从单路由到多路由）
+     */
+    private migrateLegacyConfig(config: any): any {
+        if (!config.mockServers || !Array.isArray(config.mockServers)) {
+            return config;
+        }
+
+        const migratedConfig = { ...config };
+        migratedConfig.mockServers = config.mockServers.map((server: any) => {
+            // 如果已经有routes字段，说明已经是新版本配置
+            if (server.routes && Array.isArray(server.routes)) {
+                return server;
+            }
+
+            // 如果有route字段，说明是旧版本配置，需要迁移
+            if (server.route) {
+                console.log(`迁移配置: ${server.name} (从单路由到多路由)`);
+                return {
+                    ...server,
+                    routes: [server.route]
+                };
+            }
+
+            // 如果既没有route也没有routes，创建一个默认路由
+            console.log(`为配置 ${server.name} 创建默认路由`);
+            return {
+                ...server,
+                routes: [{
+                    id: `${server.id}_default_route`,
+                    path: '/',
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: { message: 'Default response from migrated server' },
+                    statusCode: 200,
+                    description: '默认路由（由系统自动创建）',
+                    isDefault: true
+                }]
+            };
+        });
+
+        return migratedConfig;
     }
 }

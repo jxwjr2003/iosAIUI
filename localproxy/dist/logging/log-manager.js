@@ -64,4 +64,3 @@ class LogManager extends events_1.EventEmitter {
     }
 }
 exports.LogManager = LogManager;
-//# sourceMappingURL=log-manager.js.map
